@@ -1,6 +1,7 @@
 /**
- * 🏁 ULTRATHINK v3.0: Multi-API Racing System
+ * 🏁 ULTRATHINK v4.0: Multi-API Racing System - CACHE BUSTER 2025-01-17
  * 여러 API를 동시에 호출하여 가장 빠른 응답 사용
+ * 🚀 Promise.allSettled 적용 완료 - 모든 백업 API 활성화
  */
 
 class APIRacingSystem {
@@ -87,8 +88,9 @@ class APIRacingSystem {
      * 🏁 실제 Racing 실행 함수 (수정됨: 모든 API 동시 호출)
      */
     async executeRace(enabledAPIs, geomFilter, cacheKey, maxWaitTime) {
-        Logger.info('RACE', `🏁 ${enabledAPIs.length}개 API 동시 Racing 시작`, {
-            apis: enabledAPIs.map(api => api.name)
+        Logger.info('RACE', `🏁 CACHE BUSTER v4.0: ${enabledAPIs.length}개 API 동시 Racing 시작`, {
+            apis: enabledAPIs.map(api => api.name),
+            version: 'v4.0-2025-01-17'
         });
         
         // 모든 API를 동시에 호출 (개별 타임아웃 설정)

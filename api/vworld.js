@@ -1,9 +1,7 @@
-// 🎯 ULTRATHINK v6.0: Vercel 호환 VWorld API Proxy (Node.js HTTPS)
-const https = require('https');
-
-module.exports = async (req, res) => {
+// 🎯 ULTRATHINK v7.0: Fetch 기반 안정형 VWorld API Proxy
+export default async function handler(req, res) {
     try {
-        // CORS 헤더
+        // CORS 헤더 설정
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,56 +14,117 @@ module.exports = async (req, res) => {
             return res.status(405).json({ error: 'Method not allowed' });
         }
         
-        console.log('🔧 VWorld Proxy v6.0 시작');
-        console.log('쿼리 파라미터:', req.query);
+        console.log('🚀 VWorld Proxy v7.0 fetch 기반 시작');
+        console.log('Request query:', req.query);
         
-        // 쿼리 스트링 구성
-        const queryString = Object.entries(req.query)
-            .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-            .join('&');
+        // 기본 파라미터 설정
+        const {
+            service = 'data',
+            request: requestType = 'GetFeature',
+            data: dataType = 'LP_PA_CBND_BUBUN',
+            key = 'E5B1657B-9B6F-3A4B-91EF-98512BE931A1',
+            geometry = 'true',
+            geomFilter,
+            size = '10',
+            format = 'json',
+            crs = 'EPSG:4326'
+        } = req.query;
         
-        const url = `https://api.vworld.kr/req/data?${queryString}`;
-        console.log('VWorld URL:', url);
-        
-        // Node.js HTTPS 모듈로 직접 호출
-        const apiResponse = await new Promise((resolve, reject) => {
-            https.get(url, (response) => {
-                let data = '';
-                
-                response.on('data', (chunk) => {
-                    data += chunk;
-                });
-                
-                response.on('end', () => {
-                    try {
-                        const jsonData = JSON.parse(data);
-                        resolve({
-                            statusCode: response.statusCode,
-                            data: jsonData
-                        });
-                    } catch (parseError) {
-                        reject(new Error(`JSON 파싱 실패: ${parseError.message}`));
-                    }
-                });
-            }).on('error', (error) => {
-                reject(error);
-            });
-        });
-        
-        if (apiResponse.statusCode !== 200) {
-            console.error('VWorld API HTTP 에러:', apiResponse.statusCode);
-            return res.status(apiResponse.statusCode).json({
-                error: 'VWorld API Error',
-                status: apiResponse.statusCode
+        // 필수 파라미터 검증
+        if (!geomFilter) {
+            console.error('❌ geomFilter 파라미터 누락');
+            return res.status(400).json({
+                error: 'Missing required parameter',
+                message: 'geomFilter는 필수 파라미터입니다.',
+                received: req.query
             });
         }
         
-        console.log('✅ VWorld API 성공');
-        return res.status(200).json(apiResponse.data);
+        // VWorld API URL 구성
+        const vworldParams = new URLSearchParams({
+            service,
+            request: requestType,
+            data: dataType,
+            key,
+            geometry,
+            geomFilter,
+            size,
+            format,
+            crs
+        });
+        
+        const vworldUrl = `https://api.vworld.kr/req/data?${vworldParams.toString()}`;
+        console.log('🌐 VWorld API 호출:', vworldUrl.substring(0, 100) + '...');
+        
+        // Fetch로 VWorld API 호출 (타임아웃 설정)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15초 타임아웃
+        
+        const response = await fetch(vworldUrl, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Vercel-Function/1.0)',
+                'Accept': 'application/json, text/plain, */*'
+            },
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        console.log(`📡 VWorld API 응답: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Response text unavailable');
+            console.error('❌ VWorld API HTTP 에러:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText.substring(0, 200)
+            });
+            
+            return res.status(response.status).json({
+                error: 'VWorld API Error',
+                status: response.status,
+                statusText: response.statusText,
+                details: errorText.substring(0, 200)
+            });
+        }
+        
+        // JSON 응답 파싱
+        const apiData = await response.json();
+        
+        // VWorld API 내부 에러 체크
+        if (apiData.response?.status === 'ERROR') {
+            const errorMsg = apiData.response.error?.text || 'Unknown VWorld Error';
+            console.error('❌ VWorld API 내부 에러:', errorMsg);
+            
+            return res.status(400).json({
+                error: 'VWorld API Internal Error',
+                message: errorMsg,
+                response: apiData.response
+            });
+        }
+        
+        // 성공 응답 확인
+        if (apiData.response?.status === 'OK') {
+            const features = apiData.response.result?.featureCollection?.features;
+            console.log(`✅ VWorld API 성공 - 필지 개수: ${features?.length || 0}`);
+            
+            return res.status(200).json(apiData);
+        }
+        
+        // 예상치 못한 응답 형식
+        console.warn('⚠️ 예상치 못한 VWorld API 응답 형식:', Object.keys(apiData));
+        return res.status(200).json(apiData); // 일단 그대로 반환
         
     } catch (error) {
-        console.error('💥 서버리스 함수 에러:', error.message);
-        console.error('에러 스택:', error.stack);
+        console.error('💥 VWorld Proxy v7.0 치명적 에러:', error.name, error.message);
+        
+        if (error.name === 'AbortError') {
+            return res.status(408).json({
+                error: 'Request Timeout',
+                message: 'VWorld API 요청이 타임아웃되었습니다.'
+            });
+        }
         
         return res.status(500).json({
             error: 'Internal Server Error',
@@ -73,4 +132,4 @@ module.exports = async (req, res) => {
             timestamp: new Date().toISOString()
         });
     }
-};
+}

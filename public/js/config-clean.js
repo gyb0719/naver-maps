@@ -16,9 +16,9 @@ const CONFIG = {
     // 네이버 지도 API - 기존 키로 시도 (도메인 제한 확인용)
     NAVER_CLIENT_ID: 'x21kpuf1v4',
     
-    // VWorld API 키 (서버 프록시 사용)
+    // VWorld API 키 (검증된 작동 키)
     VWORLD_API_KEYS: [
-        '12A51C12-8690-3559-9C2B-9F705D0D8AF3'
+        'E5B1657B-9B6F-3A4B-91EF-98512BE931A1' // ✅ 검증 완료 - 실제 필지 데이터 반환
     ],
     
     // Supabase 설정  

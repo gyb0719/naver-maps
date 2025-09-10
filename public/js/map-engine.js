@@ -141,19 +141,27 @@ class MapEngine {
             
             const realParcel = realParcelData[0];
             
-            // 실제 VWorld 필지 데이터 검증 (geometry 필수)
-            if (!realParcel.geometry || !realParcel.geometry.coordinates || 
-                !realParcel.properties || !realParcel.properties.PNU) {
-                Logger.warn('MAP', '불완전한 필지 데이터 - VWorld 원본 데이터 아님', {
+            // 🚨 완화된 필지 데이터 검증 (백업 API 지원)
+            if (!realParcel.geometry || !realParcel.geometry.coordinates || !realParcel.properties) {
+                Logger.error('MAP', '기본 필지 구조 누락', {
                     hasGeometry: !!realParcel.geometry,
                     hasCoordinates: !!realParcel.geometry?.coordinates,
                     hasProperties: !!realParcel.properties,
-                    hasPNU: !!realParcel.properties?.PNU,
                     properties: Object.keys(realParcel.properties || {})
                 });
                 
-                Utils.updateStatus('실제 필지 데이터가 아닙니다. 서울/경기 지역을 클릭해보세요.', 'warn');
-                // 경고는 하지만 렌더링은 계속 진행
+                Utils.updateStatus('필지 구조가 올바르지 않습니다.', 'error');
+                return;
+            }
+            
+            // PNU 없이도 렌더링 허용 (백업 API 대응)
+            if (!realParcel.properties.PNU) {
+                console.log('⚠️⚠️⚠️ PNU 없는 백업 API 데이터 - 렌더링 진행');
+                Logger.info('MAP', '백업 API 데이터 감지 - PNU 없이 렌더링 진행', {
+                    properties: Object.keys(realParcel.properties || {}),
+                    hasAddress: !!realParcel.properties.addr,
+                    hasJibun: !!realParcel.properties.jibun
+                });
             }
             
             // 🎨 실제 필지 데이터로 즉시 정확한 렌더링

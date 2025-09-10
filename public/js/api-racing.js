@@ -54,29 +54,59 @@ class APIRacingSystem {
             .filter(api => api.enabled)
             .sort((a, b) => a.priority - b.priority);
         
-        // Promise.race로 동시 호출, 첫 번째 성공 응답 사용
+        Logger.info('RACE', `🔥 ${enabledAPIs.length}개 API 동시 Racing`, 
+            { apis: enabledAPIs.map(api => api.name) });
+        
+        // 모든 API를 동시에 호출 (실패해도 reject하지 않음)
         const racingPromises = enabledAPIs.map(api => 
-            this.wrapAPICall(api, geomFilter, cacheKey)
+            this.wrapAPICallSafe(api, geomFilter, cacheKey)
+        );
+        
+        // 타임아웃과 함께 모든 결과 기다리기  
+        const timeoutPromise = new Promise(resolve => 
+            setTimeout(() => resolve({ timeout: true }), maxWaitTime)
         );
         
         try {
-            const winner = await Promise.race([
-                ...racingPromises,
-                this.createTimeoutPromise(maxWaitTime)
+            const raceResult = await Promise.race([
+                Promise.allSettled(racingPromises),
+                timeoutPromise
             ]);
             
-            if (winner.timeout) {
-                Logger.warn('RACE', '⏰ 모든 API 타임아웃');
+            if (raceResult.timeout) {
+                Logger.warn('RACE', '⏰ 전체 타임아웃');
                 throw new Error('모든 API가 타임아웃되었습니다');
             }
             
+            // 성공한 결과들만 필터링
+            const successfulResults = raceResult
+                .filter(result => result.status === 'fulfilled' && result.value.success)
+                .map(result => result.value)
+                .sort((a, b) => {
+                    // 우선순위가 낮을수록(숫자가 작을수록), 응답시간이 빠를수록 우선
+                    const priorityDiff = (this.apiEndpoints.find(api => api.name === a.apiName)?.priority || 99) - 
+                                        (this.apiEndpoints.find(api => api.name === b.apiName)?.priority || 99);
+                    return priorityDiff !== 0 ? priorityDiff : a.responseTime - b.responseTime;
+                });
+            
+            if (successfulResults.length === 0) {
+                const failedResults = raceResult
+                    .map((result, index) => ({
+                        api: enabledAPIs[index]?.name || 'Unknown',
+                        error: result.status === 'fulfilled' ? result.value.error : result.reason?.message || 'Unknown error'
+                    }));
+                
+                Logger.error('RACE', '🚫 모든 API 실패', { failures: failedResults });
+                throw new Error(`모든 API 실패 (${failedResults.length}개 시도)`);
+            }
+            
+            const winner = successfulResults[0];
             Logger.success('RACE', `🏆 승자: ${winner.apiName}`, {
                 time: winner.responseTime,
-                features: winner.data?.features?.length || 0
+                features: winner.data?.features?.length || 0,
+                totalAPIs: enabledAPIs.length,
+                successfulAPIs: successfulResults.length
             });
-            
-            // 성공한 API 통계 업데이트
-            this.updateStats(winner.apiName, winner.responseTime, true);
             
             // Smart Cache에 저장
             await this.saveToSmartCache(geomFilter, winner.data, winner.apiName);
@@ -89,17 +119,15 @@ class APIRacingSystem {
             return winner.data;
             
         } catch (error) {
-            Logger.error('RACE', '🚫 모든 API 실패', error);
-            
-            // 더미 데이터 생성 금지 - 실제 에러 발생
-            throw new Error(`모든 API 호출 실패: ${error.message}`);
+            Logger.error('RACE', '🚫 Racing System 완전 실패', error);
+            throw new Error(`API Racing 실패: ${error.message}`);
         }
     }
     
     /**
-     * 🎯 API 호출 래퍼 (에러 처리 + 타이밍)
+     * 🎯 API 호출 래퍼 (에러 처리 + 타이밍) - Safe 버전 (에러 throw 안함)
      */
-    async wrapAPICall(api, geomFilter, cacheKey) {
+    async wrapAPICallSafe(api, geomFilter, cacheKey) {
         const startTime = Date.now();
         
         try {
@@ -109,6 +137,7 @@ class APIRacingSystem {
             const responseTime = Date.now() - startTime;
             
             if (data && (data.features || data.response?.result)) {
+                this.updateStats(api.name, responseTime, true);
                 return {
                     apiName: api.name,
                     data: data,
@@ -116,7 +145,13 @@ class APIRacingSystem {
                     success: true
                 };
             } else {
-                throw new Error('유효하지 않은 데이터 형식');
+                this.updateStats(api.name, responseTime, false);
+                return {
+                    apiName: api.name,
+                    error: '유효하지 않은 데이터 형식',
+                    responseTime: responseTime,
+                    success: false
+                };
             }
             
         } catch (error) {
@@ -134,7 +169,24 @@ class APIRacingSystem {
                 window.StatusMonitor.recordAPIFailure(api.name, error);
             }
             
-            throw error;
+            return {
+                apiName: api.name,
+                error: error.message,
+                responseTime: responseTime,
+                success: false
+            };
+        }
+    }
+    
+    /**
+     * 🎯 기존 API 호출 래퍼 (호환성 유지)
+     */
+    async wrapAPICall(api, geomFilter, cacheKey) {
+        const result = await this.wrapAPICallSafe(api, geomFilter, cacheKey);
+        if (result.success) {
+            return result;
+        } else {
+            throw new Error(result.error);
         }
     }
     

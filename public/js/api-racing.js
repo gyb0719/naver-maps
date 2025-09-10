@@ -314,6 +314,7 @@ class APIRacingSystem {
      * 🌐 VWorld Direct 클라이언트 호출 (ECONNRESET 우회)
      */
     async callVWorldDirect(geomFilter) {
+        console.log('🟢🟢🟢 VWORLD_DIRECT CALLED!!! geomFilter:', geomFilter);
         try {
             // 테스트로 확인된 작동하는 API 키들
             const workingKeys = [
@@ -322,6 +323,7 @@ class APIRacingSystem {
                 '12A51C12-8690-3559-9C2B-9F705D0D8AF3'
             ];
             
+            console.log('🟢 VWorld_Direct API 키 개수:', workingKeys.length);
             Logger.info('DIRECT', '클라이언트 직접 VWorld API 호출 시작');
             
             for (const apiKey of workingKeys) {
@@ -378,6 +380,7 @@ class APIRacingSystem {
      * 🗺️ Backup Nominatim 호출 (테스트 확인됨)
      */
     async callBackupNominatim(geomFilter) {
+        console.log('🟡🟡🟡 BACKUP_NOMINATIM CALLED!!! geomFilter:', geomFilter);
         try {
             // 좌표 추출
             const match = geomFilter.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
@@ -386,6 +389,7 @@ class APIRacingSystem {
             const lng = parseFloat(match[1]);
             const lat = parseFloat(match[2]);
             
+            console.log('🟡 Nominatim 좌표 파싱:', { lng, lat });
             if (isNaN(lng) || isNaN(lat)) throw new Error('유효하지 않은 좌표');
             
             Logger.info('NOMINATIM', 'Nominatim API 호출 시작', { lat, lng });

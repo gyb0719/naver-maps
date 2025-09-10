@@ -191,17 +191,33 @@ class MapEngine {
      * 🎯 ULTRATHINK v8.0: 실제 필지 데이터로 정확한 렌더링 (클릭 사운드 제거)
      */
     async renderRealParcel(parcelData) {
+        console.log('🎨🎨🎨 RENDERREALPARCEL START:', {
+            hasGeometry: !!parcelData.geometry,
+            hasProperties: !!parcelData.properties,
+            geometryType: parcelData.geometry?.type,
+            propertiesKeys: Object.keys(parcelData.properties || {})
+        });
+        
         const pnu = Utils.generatePNU(parcelData.properties);
+        console.log('🏷️ Generated PNU:', pnu);
         
         // 이미 렌더링된 필지인지 확인
         if (this.parcels.has(pnu)) {
+            console.log('⚠️ Already rendered parcel:', pnu);
             Logger.info('MAP', '이미 렌더링된 필지', pnu);
             return this.parcels.get(pnu).polygon;
         }
         
         try {
             // 좌표 데이터 처리  
+            console.log('📍 Processing coordinates...');
             const coordinates = this.processCoordinates(parcelData);
+            console.log('📍 Processed coordinates:', {
+                type: typeof coordinates,
+                isArray: Array.isArray(coordinates),
+                length: coordinates?.length,
+                firstCoord: coordinates?.[0]
+            });
             if (!coordinates) throw new Error('좌표 처리 실패');
             
             // 현재 선택된 색상 (기본값 보장)
@@ -214,6 +230,12 @@ class MapEngine {
             });
             
             // 네이버 지도 폴리곤 생성 (정확한 실제 좌표로) - 강화된 가시성
+            console.log('🎨 Creating Naver Maps Polygon with:', {
+                color: color,
+                coordinatesLength: coordinates.length,
+                hasMap: !!this.map
+            });
+            
             const polygon = new naver.maps.Polygon({
                 map: this.map,
                 paths: coordinates,
@@ -225,6 +247,8 @@ class MapEngine {
                 clickable: true,
                 zIndex: 100       // z-index 설정으로 다른 요소 위에 표시
             });
+            
+            console.log('✅ Polygon created successfully:', !!polygon);
             
             // 부드러운 등장 효과 (펄스는 유지하되 사운드 제거)
             this.addPulseEffect(polygon);

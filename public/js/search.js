@@ -483,64 +483,55 @@ async function searchAddress(query) {
     
     console.log('✅ 사전 확인 완료, 지오코딩 API 호출 시작');
     
-    // 네이버 Geocoding API로 주소 검색
+    // APIClient를 통한 주소 검색
     try {
-        naver.maps.Service.geocode({
-            query: query
-        }, function(status, response) {
-            console.log('Geocoding 상태:', status);
-            console.log('Geocoding 응답:', response);
+        const data = await APIClient.geocodeAddress(query);
+        console.log('Geocoding 응답:', data);
+        
+        if (!data.addresses || data.addresses.length === 0) {
+            console.log('주소 결과 없음, 지번 검색 시도');
+            searchParcelByJibun(query);
+            return;
+        }
+        
+        const result = data.addresses[0];
+        
+        // 좌표 변환
+        const lat = parseFloat(result.y);
+        const lng = parseFloat(result.x);
+        const point = new naver.maps.LatLng(lat, lng);
+        
+        console.log('주소 검색 성공:', result);
+        console.log('좌표:', lat, lng);
+        
+        if (result && result.addressElements) {
+            const addressElements = result.addressElements;
+            let fullAddress = '';
             
-            if (status !== naver.maps.Service.Status.OK) {
-                console.log('Geocoding 실패, 지번 검색 시도');
-                // Geocoding 실패 시 지번 검색 시도
-                searchParcelByJibun(query);
-                return;
-            }
+            addressElements.forEach(element => {
+                if (element.longName && element.types.includes('POSTAL_CODE') === false) {
+                    fullAddress += element.longName + ' ';
+                }
+            });
             
-            const result = response.v2.addresses[0];
-            if (!result) {
-                console.log('주소 결과 없음, 지번 검색 시도');
-                searchParcelByJibun(query);
-                return;
-            }
+            const item = {
+                address: fullAddress.trim(),
+                point: point
+            };
             
-            // 좌표 변환
-            const lat = parseFloat(result.y);
-            const lng = parseFloat(result.x);
-            const point = new naver.maps.LatLng(lat, lng);
+            console.log('주소 검색 성공:', item);
             
-            console.log('주소 검색 성공:', result);
-            console.log('좌표:', lat, lng);
+            // 지도 이동
+            window.map.setCenter(point);
+            window.map.setZoom(18);
             
-            if (result && result.addressElements) {
-                const addressElements = result.addressElements;
-                let fullAddress = '';
-                
-                addressElements.forEach(element => {
-                    if (element.longName && element.types.includes('POSTAL_CODE') === false) {
-                        fullAddress += element.longName + ' ';
-                    }
-                });
-                
-                const item = {
-                    address: fullAddress.trim(),
-                    point: point
-                };
-                
-                console.log('주소 검색 성공:', item);
-                
-                // 지도 이동
-                window.map.setCenter(point);
-                window.map.setZoom(18);
-                
-                // 해당 위치의 필지를 검색용으로 조회 (노란색 표시)
-                searchParcelAtLocation(point.lat(), point.lng());
-            }
-        });
+            // 해당 위치의 필지를 검색용으로 조회 (노란색 표시)
+            searchParcelAtLocation(point.lat(), point.lng());
+        }
     } catch (error) {
         console.error('주소 검색 실패:', error);
-        alert('검색 중 오류가 발생했습니다.');
+        console.log('주소 검색 실패, 지번 검색 시도');
+        searchParcelByJibun(query);
     }
 }
 

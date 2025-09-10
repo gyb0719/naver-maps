@@ -10,8 +10,28 @@ const Logger = {
     warn: (module, message, data) => console.warn(`[${module}] WARNING: ${message}`, data || '')
 };
 
+// 환경 감지 로직
+const Environment = {
+    isDevelopment: () => {
+        const hostname = window.location.hostname;
+        return hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+    },
+    isProduction: () => {
+        const hostname = window.location.hostname;
+        return hostname.includes('vercel.app') || hostname.includes('parcel-management-system');
+    },
+    getBaseUrl: () => {
+        return Environment.isDevelopment() ? 
+            `${window.location.protocol}//${window.location.host}` : 
+            window.location.origin;
+    }
+};
+
 // 메인 설정 객체
 const CONFIG = {
+    // 환경 정보
+    ENVIRONMENT: Environment,
+    
     // API 키 정보
     NAVER_CLIENT_ID: 'x21kpuf1v4',
     
@@ -68,6 +88,108 @@ window.AppState = {
     map: null,
     parcelsData: new Map(),  // PNU를 키로 하는 필지 데이터
     user: null
+};
+
+// API 호출 래퍼 클라이언트
+const APIClient = {
+    /**
+     * Naver Maps Geocoding API 호출
+     */
+    async geocodeAddress(query) {
+        try {
+            const baseUrl = CONFIG.ENVIRONMENT.getBaseUrl();
+            
+            if (CONFIG.ENVIRONMENT.isDevelopment()) {
+                // 로컬 개발환경: 서버 프록시 사용
+                Logger.info('GEOCODE', '로컬 프록시를 통한 주소 검색', { query });
+                const response = await fetch(`${baseUrl}/api/naver/geocode?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    Logger.info('GEOCODE', '주소 검색 성공', { count: data.addresses?.length || 0 });
+                    return data;
+                } else {
+                    throw new Error(data.error || '주소 검색 실패');
+                }
+            } else {
+                // 프로덕션 환경: 직접 API 호출 (클라이언트에서 직접 호출은 CORS 문제로 불가능)
+                // 프로덕션에서도 프록시를 사용해야 함
+                Logger.info('GEOCODE', '프로덕션 프록시를 통한 주소 검색', { query });
+                const response = await fetch(`${baseUrl}/api/naver/geocode?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    Logger.info('GEOCODE', '주소 검색 성공', { count: data.addresses?.length || 0 });
+                    return data;
+                } else {
+                    throw new Error(data.error || '주소 검색 실패');
+                }
+            }
+        } catch (error) {
+            Logger.error('GEOCODE', '주소 검색 오류', error);
+            Utils.handleError('GEOCODE', '주소 검색에 실패했습니다', error);
+            throw error;
+        }
+    },
+
+    /**
+     * VWorld API 호출 (필지 정보)
+     */
+    async getParcelInfo(geomFilter, size = '10') {
+        try {
+            const baseUrl = CONFIG.ENVIRONMENT.getBaseUrl();
+            
+            // VWorld API는 항상 프록시를 사용 (CORS 문제 및 API 키 보호)
+            Logger.info('VWORLD', '필지 정보 요청', { geomFilter, size });
+            
+            const params = new URLSearchParams({
+                service: 'data',
+                request: 'GetFeature',
+                data: 'LP_PA_CBND_BUBUN',
+                key: CONFIG.VWORLD_API_KEYS[0],
+                geometry: 'true',
+                geomFilter: geomFilter,
+                size: size,
+                format: 'json',
+                crs: 'EPSG:4326'
+            });
+            
+            const response = await fetch(`${baseUrl}/api/vworld?${params.toString()}`);
+            const data = await response.json();
+            
+            if (response.ok && (data.response?.status === 'OK' || data.features)) {
+                Logger.info('VWORLD', '필지 정보 조회 성공', { count: data.features?.length || 0 });
+                return data;
+            } else {
+                throw new Error(data.error || '필지 정보 조회 실패');
+            }
+        } catch (error) {
+            Logger.error('VWORLD', '필지 정보 조회 오류', error);
+            Utils.handleError('VWORLD', '필지 정보 조회에 실패했습니다', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 서버 설정 정보 가져오기
+     */
+    async getServerConfig() {
+        try {
+            const baseUrl = CONFIG.ENVIRONMENT.getBaseUrl();
+            const response = await fetch(`${baseUrl}/api/config`);
+            const data = await response.json();
+            
+            if (response.ok) {
+                Logger.info('CONFIG', '서버 설정 로드 성공');
+                return data;
+            } else {
+                throw new Error('서버 설정 로드 실패');
+            }
+        } catch (error) {
+            Logger.error('CONFIG', '서버 설정 로드 오류', error);
+            throw error;
+        }
+    }
 };
 
 // 유틸리티 함수들

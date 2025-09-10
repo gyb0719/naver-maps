@@ -167,6 +167,96 @@ const Utils = {
                 dong: '서초동'
             }
         };
+    },
+
+    /**
+     * 🎯 ULTRATHINK: 로컬 개발용 모킹 API 시스템
+     */
+    async mockVWorldAPI(geomFilter) {
+        // 실제 VWorld API 응답 형식 모킹
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({
+                    response: { status: 'OK' },
+                    features: [
+                        {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Polygon',
+                                coordinates: [[
+                                    [127.026, 37.495],
+                                    [127.027, 37.495],
+                                    [127.027, 37.496], 
+                                    [127.026, 37.496],
+                                    [127.026, 37.495]
+                                ]]
+                            },
+                            properties: {
+                                PNU: 'MOCK_001',
+                                jibun: '서초구 서초동 1376-1',
+                                bon: '1376',
+                                bu: '1',
+                                gu: '서초구',
+                                dong: '서초동',
+                                SGG_OID: '11650',
+                                COL_ADM_SE: '11'
+                            }
+                        },
+                        {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Polygon',
+                                coordinates: [[
+                                    [127.027, 37.495],
+                                    [127.028, 37.495],
+                                    [127.028, 37.496],
+                                    [127.027, 37.496],
+                                    [127.027, 37.495]
+                                ]]
+                            },
+                            properties: {
+                                PNU: 'MOCK_002',
+                                jibun: '서초구 서초동 1376-2',
+                                bon: '1376',
+                                bu: '2',
+                                gu: '서초구',
+                                dong: '서초동',
+                                SGG_OID: '11650',
+                                COL_ADM_SE: '11'
+                            }
+                        }
+                    ]
+                });
+            }, 500); // 0.5초 딜레이로 실제 API 호출 느낌 연출
+        });
+    },
+
+    async mockNaverGeocode(query) {
+        // 실제 Naver Geocoding API 응답 형식 모킹
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({
+                    status: 'OK',
+                    meta: { totalCount: 1, page: 1, count: 1 },
+                    addresses: [
+                        {
+                            roadAddress: '서울특별시 서초구 서초대로74길 33',
+                            jibunAddress: '서울특별시 서초구 서초동 1376-1',
+                            englishAddress: '33, Seocho-daero 74-gil, Seocho-gu, Seoul, Republic of Korea',
+                            addressElements: [
+                                { types: ['SIDO'], longName: '서울특별시', shortName: '서울특별시', code: '' },
+                                { types: ['SIGUGUN'], longName: '서초구', shortName: '서초구', code: '' },
+                                { types: ['DONGMYUN'], longName: '서초동', shortName: '서초동', code: '' }
+                            ],
+                            x: '127.0263368',
+                            y: '37.4953070',
+                            distance: 0.0
+                        }
+                    ],
+                    errorMessage: ''
+                });
+            }, 300);
+        });
     }
 };
 

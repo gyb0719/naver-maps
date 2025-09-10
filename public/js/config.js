@@ -199,18 +199,44 @@ const Utils = {
      */
     formatJibun: (properties) => {
         try {
-            if (properties.jibun) return properties.jibun;
-            if (properties.JIBUN) return properties.JIBUN;
+            // VWorld API에서 받은 지번 정보 처리
+            let jibun = properties.jibun || properties.JIBUN;
             
-            const bon = properties.bon || properties.BON || '';
-            const bu = properties.bu || properties.BU || '';
+            if (jibun) {
+                // '~대' 형식 제거하고 깔끔하게 정리
+                jibun = jibun.replace(/대$/, ''); // '159-2대' → '159-2'
+                
+                // addr에서 동명 추출하여 완전한 형태 구성
+                if (properties.addr) {
+                    const addrMatch = properties.addr.match(/(\S+동)\s*(\d+(?:-\d+)?)/);
+                    if (addrMatch) {
+                        const dongName = addrMatch[1]; // '냉천동'
+                        const jibunNumber = addrMatch[2]; // '159-2'
+                        return `${dongName} ${jibunNumber}`;
+                    }
+                }
+                
+                return jibun; // 동명을 못 찾으면 그냥 지번만
+            }
+            
+            // 기존 방식 (bonbun, bubun을 이용한 조합)
+            const bonbun = properties.bonbun || properties.BON || '';
+            const bubun = properties.bubun || properties.BU || '';
             const dong = properties.dong || properties.DONG || '';
             const gu = properties.gu || properties.GU || '';
             
-            if (bon && bu && bu !== '0') {
-                return `${gu} ${dong} ${bon}-${bu}`;
-            } else if (bon) {
-                return `${gu} ${dong} ${bon}`;
+            if (bonbun && bubun && bubun !== '0') {
+                return `${gu} ${dong} ${bonbun}-${bubun}`;
+            } else if (bonbun) {
+                return `${gu} ${dong} ${bonbun}`;
+            }
+            
+            // addr에서 직접 추출 시도
+            if (properties.addr) {
+                const addrMatch = properties.addr.match(/(\S+동)\s*(\d+(?:-\d+)?)/);
+                if (addrMatch) {
+                    return `${addrMatch[1]} ${addrMatch[2]}`;
+                }
             }
             
             return '지번 정보 없음';

@@ -117,8 +117,16 @@ class MapEngine {
         // 🔄 Phase 2: 백그라운드 실제 데이터 로딩
         this.loadRealParcelData(lat, lng, tempPNU, tempParcel)
             .catch(error => {
-                Logger.warn('MAP', '백그라운드 로딩 실패하지만 사용자는 이미 색칠된 상태', error);
-                // 실패해도 사용자는 모름 - 이미 색칠되어 있음
+                Logger.error('MAP', '백그라운드 API 완전 실패 - 임시 필지 제거', error);
+                // 더미 데이터 유지 금지 - 임시 필지도 제거
+                if (this.parcels.has(tempPNU)) {
+                    const tempParcel = this.parcels.get(tempPNU);
+                    if (tempParcel.polygon) {
+                        tempParcel.polygon.setMap(null);
+                    }
+                    this.parcels.delete(tempPNU);
+                }
+                Utils.updateStatus(`필지 로딩 실패: ${error.message}`, 'error');
             });
     }
     
@@ -201,8 +209,9 @@ class MapEngine {
             
         } catch (error) {
             Logger.error('MAP', '즉시 렌더링 실패', error);
-            // 실패해도 기본 마커라도 표시
-            this.createFallbackMarker(parcelData.properties.clickLat, parcelData.properties.clickLng);
+            // 더미 데이터 생성 금지 - 에러 상태로 표시
+            Utils.updateStatus('필지 렌더링 실패', 'error');
+            throw error;
         }
     }
     
@@ -229,20 +238,25 @@ class MapEngine {
                 Utils.updateStatus('필지 정보 로딩 완료!', 'success');
                 
             } else {
-                Logger.info('MAP', '실제 필지 없음 - 임시 필지 유지');
-                Utils.updateStatus('색칠 완료', 'success');
+                Logger.error('MAP', '실제 필지 데이터를 찾을 수 없음');
+                Utils.updateStatus('필지 데이터 없음', 'error');
+                // 더미 데이터 유지 금지 - 에러 발생
+                throw new Error('해당 위치에 필지 데이터가 없습니다');
             }
             
         } catch (error) {
-            Logger.warn('MAP', '실제 데이터 로딩 실패 - 임시 필지 유지', error);
-            // 캐시에서 유사한 지역 데이터 찾기 (Phase 3에서 구현)
-            const cachedData = await this.findCachedNearbyData(lat, lng);
-            if (cachedData) {
-                await this.upgradeToRealParcel(tempPNU, cachedData);
-                Utils.updateStatus('캐시 데이터로 업데이트 완료', 'success');
-            } else {
-                Utils.updateStatus('색칠 완료 (기본 모드)', 'success');
+            Logger.error('MAP', '실제 데이터 로딩 완전 실패', error);
+            // 더미 데이터 유지 금지 - 실제 에러 표시
+            Utils.updateStatus(`API 호출 실패: ${error.message}`, 'error');
+            // 임시 필지 제거
+            if (this.parcels.has(tempPNU)) {
+                const tempParcel = this.parcels.get(tempPNU);
+                if (tempParcel.polygon) {
+                    tempParcel.polygon.setMap(null);
+                }
+                this.parcels.delete(tempPNU);
             }
+            throw error;
         }
     }
     
@@ -523,24 +537,6 @@ class MapEngine {
         }
     }
     
-    /**
-     * ⚡ 폴백 마커 생성 (최후의 수단)
-     */
-    createFallbackMarker(lat, lng) {
-        const color = window.AppState.currentColor;
-        
-        const marker = new naver.maps.Marker({
-            position: new naver.maps.LatLng(lat, lng),
-            map: this.map,
-            icon: {
-                content: `<div style="width:20px;height:20px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`,
-                anchor: new naver.maps.Point(10, 10)
-            }
-        });
-        
-        Logger.info('MAP', '⚡ 폴백 마커 생성', { lat, lng });
-        return marker;
-    }
     
     /**
      * 🔄 임시 필지를 실제 필지로 업그레이드
@@ -579,7 +575,9 @@ class MapEngine {
             Logger.success('MAP', '🎉 실제 필지로 업그레이드 완료', realPNU);
             
         } catch (error) {
-            Logger.warn('MAP', '업그레이드 실패 - 임시 필지 유지', error);
+            Logger.error('MAP', '필지 업그레이드 완전 실패', error);
+            // 더미 데이터 유지 금지 - 에러 발생
+            throw error;
         }
     }
     
@@ -625,9 +623,9 @@ class MapEngine {
             }
             
         } catch (error) {
-            Logger.error('MAP', 'Racing System 실패 - 폴백 사용', error);
-            // 최후의 수단으로 기존 방식 시도
-            return await this.fetchParcelInfo(lat, lng);
+            Logger.error('MAP', 'Racing System 완전 실패', error);
+            // 더미 데이터 생성 금지 - 실제 에러 발생
+            throw new Error(`API Racing System 실패: ${error.message}`);
         }
     }
 }

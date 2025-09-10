@@ -8,7 +8,7 @@ class APIRacingSystem {
         this.apiEndpoints = [
             {
                 name: 'Cache',
-                priority: 0, // 최고 우선순위
+                priority: -1, // 극대화된 최고 우선순위
                 enabled: true,
                 call: this.callCache.bind(this)
             },
@@ -27,12 +27,13 @@ class APIRacingSystem {
             {
                 name: 'Backup_OSM',
                 priority: 2, // 우선순위 상승
-                enabled: true,
+                enabled: false, // 속도 최적화를 위해 비활성화
                 call: this.callBackupOSM.bind(this)
             }
         ];
         
         this.cache = new Map();
+        this.pendingRequests = new Map(); // 진행 중인 요청 추적
         this.stats = {
             totalCalls: 0,
             successRate: {},
@@ -43,9 +44,15 @@ class APIRacingSystem {
     /**
      * 🏁 메인 Racing 함수
      */
-    async raceForParcelData(lat, lng, maxWaitTime = 10000) {
+    async raceForParcelData(lat, lng, maxWaitTime = 3000) {
         const geomFilter = `POINT(${lng} ${lat})`;
         const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}`;
+        
+        // 🚀 중복 요청 방지 - 이미 진행 중인 요청이 있으면 기다리기
+        if (this.pendingRequests.has(cacheKey)) {
+            Logger.info('RACE', '⏳ 진행 중인 요청 대기', { lat, lng });
+            return await this.pendingRequests.get(cacheKey);
+        }
         
         Logger.info('RACE', '🏁 Multi-API Racing 시작', { lat, lng });
         this.stats.totalCalls++;
@@ -57,6 +64,23 @@ class APIRacingSystem {
         Logger.info('RACE', `🔥 ${enabledAPIs.length}개 API 동시 Racing`, 
             { apis: enabledAPIs.map(api => api.name) });
         
+        // 🚀 현재 요청을 pendingRequests에 저장
+        const racePromise = this.executeRace(enabledAPIs, geomFilter, cacheKey, maxWaitTime);
+        this.pendingRequests.set(cacheKey, racePromise);
+        
+        try {
+            const result = await racePromise;
+            return result;
+        } finally {
+            // 완료 후 pendingRequests에서 제거
+            this.pendingRequests.delete(cacheKey);
+        }
+    }
+    
+    /**
+     * 🏁 실제 Racing 실행 함수
+     */
+    async executeRace(enabledAPIs, geomFilter, cacheKey, maxWaitTime) {
         // 모든 API를 동시에 호출 (실패해도 reject하지 않음)
         const racingPromises = enabledAPIs.map(api => 
             this.wrapAPICallSafe(api, geomFilter, cacheKey)
@@ -221,7 +245,7 @@ class APIRacingSystem {
             key: CONFIG.VWORLD_API_KEYS[0],
             geometry: 'true',
             geomFilter: geomFilter,
-            size: '10',
+            size: '1',
             format: 'json',
             crs: 'EPSG:4326'
         });

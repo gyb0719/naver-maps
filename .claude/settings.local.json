@@ -79,7 +79,8 @@
       "Bash(start http://localhost:4000)",
       "WebFetch(domain:parcel-management-system-pink.vercel.app)",
       "Read(//Users/ai-code-lab/Downloads/**)",
-      "Bash(open http://localhost:4000)"
+      "Bash(open http://localhost:4000)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

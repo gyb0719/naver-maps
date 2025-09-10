@@ -143,33 +143,22 @@ class MapEngine {
     }
     
     /**
-     * VWorld API를 통한 필지 정보 조회
+     * 🎯 ULTRATHINK: APIClient를 통한 필지 정보 조회 (환경별 자동 분기)
      */
     async fetchParcelInfo(lat, lng) {
-        const apiUrl = `${CONFIG.VWORLD_PROXY_URL}?` + new URLSearchParams({
-            service: 'data',
-            request: 'GetFeature',
-            data: 'LT_C_ADSIDO_INFO',
-            key: CONFIG.VWORLD_API_KEYS[0],
-            geometry: `POINT(${lng} ${lat})`,
-            attribute: 'bon,bu,dong,gu,pnu',
-            format: 'json',
-            crs: 'EPSG:4326'
-        });
+        const geomFilter = `POINT(${lng} ${lat})`;
         
-        Logger.api('MAP', 'GET', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`API 호출 실패: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.response && data.response.result === 'OK') {
-            return data.response.result.featureCollection.features;
-        } else {
-            throw new Error('API 응답 오류');
+        try {
+            const result = await APIClient.getParcelInfo(geomFilter);
+            
+            if (result.features && result.features.length > 0) {
+                return result.features;
+            } else {
+                return [];
+            }
+        } catch (error) {
+            console.error('[MAP-ENGINE] 필지 정보 조회 실패:', error);
+            throw error;
         }
     }
     

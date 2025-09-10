@@ -264,20 +264,30 @@ class MapEngine {
             };
             
             // 메모리에 저장
+            console.log('💾 Saving parcel to memory:', pnu);
             this.parcels.set(pnu, parcelInfo);
             this.currentPolygons.push(polygon);
+            console.log('💾 Total parcels in memory:', this.parcels.size);
+            console.log('💾 Total currentPolygons:', this.currentPolygons.length);
             
             // 🎯 핵심: 폴리곤 이벤트 리스너 등록 (색칠/삭제 기능)
+            console.log('🔗 Setting up polygon events...');
             this.setupPolygonEvents(polygon, parcelInfo);
             
             // 전역 상태에도 저장
             if (window.AppState && window.AppState.parcels) {
                 window.AppState.parcels.set(pnu, parcelInfo);
+                console.log('🌍 Saved to global state, total:', window.AppState.parcels.size);
             }
+            
+            // 폴리곤이 실제로 지도에 추가되었는지 확인
+            const overlayCount = window.map?.overlays ? Object.keys(window.map.overlays).length : 0;
+            console.log('🗺️ Map overlays count after polygon creation:', overlayCount);
             
             // 🎵 클릭 사운드 완전 제거 (사용자 요청)
             // this.playClickSound(); - 제거됨
             
+            console.log('🎉🎉🎉 RENDER COMPLETE - Polygon should be visible now!');
             Logger.success('MAP', '🎯 실제 필지 렌더링 완료', pnu);
             
             return polygon;

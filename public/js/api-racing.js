@@ -342,33 +342,10 @@ class APIRacingSystem {
             });
         }
         
-        // OSM 데이터가 없으면 클릭 지점에 작은 사각형 필지 생성
+        // OSM 데이터가 없으면 에러 발생 (더미 데이터 생성 금지)
         if (features.length === 0) {
-            Logger.warn('OSM', '🔄 OSM 데이터 없음, 클릭 지점에 테스트 필지 생성');
-            
-            const offset = 0.0005; // 약 50미터
-            const testPolygon = [
-                [numLng - offset, numLat - offset],
-                [numLng + offset, numLat - offset], 
-                [numLng + offset, numLat + offset],
-                [numLng - offset, numLat + offset],
-                [numLng - offset, numLat - offset]
-            ];
-            
-            features.push({
-                type: 'Feature',
-                geometry: {
-                    type: 'Polygon',
-                    coordinates: [testPolygon]
-                },
-                properties: {
-                    PNU: `TEST_${Date.now()}`,
-                    jibun: '테스트필지',
-                    addr: `클릭 지점: ${numLat.toFixed(6)}, ${numLng.toFixed(6)}`,
-                    backup: true,
-                    source: 'TestPolygon'
-                }
-            });
+            Logger.error('OSM', '🚫 OSM 데이터 없음 - 더미 데이터 생성 금지');
+            throw new Error('OSM 백업 데이터 없음');
         }
         
         Logger.success('OSM', '✅ OSM → VWorld 변환 완료', {

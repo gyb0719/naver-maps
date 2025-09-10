@@ -537,11 +537,26 @@ class MapEngine {
             let coords = null;
             let coordinateSource = null;
             
-            // VWorld 표준 형식
+            // VWorld 표준 형식 (MultiPolygon 구조 처리)
             if (parcelData.geometry && parcelData.geometry.coordinates) {
-                coords = parcelData.geometry.coordinates[0];
-                coordinateSource = 'VWorld Standard';
-                Logger.info('MAP', '📍 VWorld 표준 좌표 사용', { count: coords?.length });
+                if (parcelData.geometry.type === 'MultiPolygon') {
+                    // MultiPolygon: coordinates[0][0]이 실제 좌표 배열
+                    coords = parcelData.geometry.coordinates[0][0];
+                    coordinateSource = 'VWorld MultiPolygon';
+                } else if (parcelData.geometry.type === 'Polygon') {
+                    // Polygon: coordinates[0]이 실제 좌표 배열
+                    coords = parcelData.geometry.coordinates[0];
+                    coordinateSource = 'VWorld Polygon';
+                } else {
+                    // 기존 방식 (호환성)
+                    coords = parcelData.geometry.coordinates[0];
+                    coordinateSource = 'VWorld Standard';
+                }
+                Logger.info('MAP', '📍 VWorld 좌표 사용', { 
+                    type: parcelData.geometry.type,
+                    source: coordinateSource,
+                    count: coords?.length 
+                });
             }
             // 샘플 데이터 형식
             else if (parcelData.coordinates) {

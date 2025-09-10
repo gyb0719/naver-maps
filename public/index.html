@@ -147,6 +147,51 @@
                 <div id="map"></div>
                 <div id="pano" style="display:none;"></div>
                 
+                <!-- 🎯 ULTRATHINK: Real-time API Status Monitor -->
+                <div id="apiStatusMonitor" class="api-status-monitor">
+                    <div class="status-header">
+                        <span class="status-icon">📡</span>
+                        <span class="status-title">API 상태</span>
+                        <button id="statusToggle" class="status-toggle">−</button>
+                    </div>
+                    <div class="status-content">
+                        <div class="status-item">
+                            <span class="status-label">마지막 클릭:</span>
+                            <span id="lastClickTime">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">응답 시간:</span>
+                            <span id="responseTime">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">성공한 API:</span>
+                            <span id="winnerAPI">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">캐시 히트율:</span>
+                            <span id="cacheHitRate">0%</span>
+                        </div>
+                        <div class="api-indicators">
+                            <div class="api-indicator" data-api="Cache">
+                                <span class="indicator-dot"></span>
+                                <span class="indicator-name">Cache</span>
+                            </div>
+                            <div class="api-indicator" data-api="VWorld_Serverless">
+                                <span class="indicator-dot"></span>
+                                <span class="indicator-name">Serverless</span>
+                            </div>
+                            <div class="api-indicator" data-api="VWorld_Direct">
+                                <span class="indicator-dot"></span>
+                                <span class="indicator-name">Direct</span>
+                            </div>
+                            <div class="api-indicator" data-api="Backup_OSM">
+                                <span class="indicator-dot"></span>
+                                <span class="indicator-name">OSM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 🎯 ULTRATHINK: 거리뷰에서 지도로 돌아가기 버튼 -->
                 <div id="streetViewControls" class="street-controls" style="display:none;">
                     <button id="backToMapBtn" class="back-to-map-btn">
@@ -217,6 +262,9 @@
     <script src="/js/map-engine.js"></script>
     <script src="/js/search-clean.js"></script>
     <script src="/js/data-simple.js"></script>
+    <script src="/js/smart-cache.js"></script>
+    <script src="/js/api-racing.js"></script>
+    <script src="/js/status-monitor.js"></script>
     <script src="/js/ui-handler.js"></script>
     <script src="/js/app-main.js"></script>
 </body>

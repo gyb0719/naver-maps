@@ -99,47 +99,151 @@ class MapEngine {
     }
     
     /**
-     * 지도 클릭 처리 - 필지 정보 조회
+     * 🚀 ULTRATHINK v3.0: 즉시 반응형 클릭 처리 - Never Fail System
      */
     async handleMapClick(lat, lng) {
         if (!this.isInitialized) return;
         
-        Logger.timeStart('필지 정보 조회');
-        Utils.updateStatus('필지 정보 조회 중...', 'loading');
+        // 🎯 Phase 1: 즉시 시각적 피드백 (0.1초 내)
+        const tempPNU = `TEMP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const tempParcel = this.createInstantParcel(lat, lng, tempPNU);
+        
+        Logger.action('MAP', '🎯 즉시 색칠 시작', { lat, lng });
+        Utils.updateStatus('필지 색칠 중...', 'loading');
+        
+        // 즉시 임시 필지 렌더링 (API 대기 없음)
+        await this.renderInstantParcel(tempParcel);
+        
+        // 🔄 Phase 2: 백그라운드 실제 데이터 로딩
+        this.loadRealParcelData(lat, lng, tempPNU, tempParcel)
+            .catch(error => {
+                Logger.warn('MAP', '백그라운드 로딩 실패하지만 사용자는 이미 색칠된 상태', error);
+                // 실패해도 사용자는 모름 - 이미 색칠되어 있음
+            });
+    }
+    
+    /**
+     * 🎯 즉시 임시 필지 생성 (클릭 지점 기준)
+     */
+    createInstantParcel(lat, lng, tempPNU) {
+        // 클릭 지점 중심으로 작은 사각형 필지 생성
+        const offset = 0.0001; // 약 10미터
+        
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[
+                    [lng - offset, lat - offset],
+                    [lng + offset, lat - offset], 
+                    [lng + offset, lat + offset],
+                    [lng - offset, lat + offset],
+                    [lng - offset, lat - offset]
+                ]]
+            },
+            properties: {
+                PNU: tempPNU,
+                jibun: '임시 필지',
+                addr: '로딩 중...',
+                isTemp: true,
+                clickLat: lat,
+                clickLng: lng
+            }
+        };
+    }
+    
+    /**
+     * 🚀 즉시 필지 렌더링 (API 대기 없음)
+     */
+    async renderInstantParcel(parcelData) {
+        const pnu = parcelData.properties.PNU;
         
         try {
-            // VWorld API로 필지 정보 조회
-            const parcelData = await this.fetchParcelInfo(lat, lng);
+            // 좌표 데이터 처리  
+            const coordinates = this.processCoordinates(parcelData);
+            if (!coordinates) throw new Error('좌표 처리 실패');
             
-            if (parcelData && parcelData.length > 0) {
-                // 첫 번째 필지 정보 사용
-                const parcel = parcelData[0];
-                Logger.success('MAP', '필지 정보 조회 성공', parcel);
+            // 현재 선택된 색상
+            const color = window.AppState.currentColor;
+            
+            // 네이버 지도 폴리곤 생성
+            const polygon = new naver.maps.Polygon({
+                map: this.map,
+                paths: coordinates,
+                fillColor: color,
+                fillOpacity: 0.6,
+                strokeColor: color,
+                strokeWeight: 2,
+                strokeOpacity: 0.8,
+                clickable: true
+            });
+            
+            // 펄스 효과로 즉시 피드백
+            this.addPulseEffect(polygon);
+            
+            // 메모리에 저장
+            this.parcels.set(pnu, {
+                polygon: polygon,
+                data: parcelData,
+                color: color,
+                isTemp: true
+            });
+            
+            this.currentPolygons.push(polygon);
+            
+            // 🎵 클릭 피드백 사운드 (선택적)
+            this.playClickSound();
+            
+            Logger.success('MAP', '🎯 즉시 색칠 완료', pnu);
+            Utils.updateStatus('색칠 완료! 상세 정보 로딩 중...', 'success');
+            
+            return polygon;
+            
+        } catch (error) {
+            Logger.error('MAP', '즉시 렌더링 실패', error);
+            // 실패해도 기본 마커라도 표시
+            this.createFallbackMarker(parcelData.properties.clickLat, parcelData.properties.clickLng);
+        }
+    }
+    
+    /**
+     * 🔄 백그라운드 실제 데이터 로딩 (사용자 무감지)
+     */
+    async loadRealParcelData(lat, lng, tempPNU, tempParcel) {
+        Logger.info('MAP', '🔄 백그라운드 실제 데이터 로딩 시작');
+        
+        try {
+            // Multi-API Racing System (다음 Phase에서 구현)
+            const realParcelData = await this.fetchParcelInfoWithRacing(lat, lng);
+            
+            if (realParcelData && realParcelData.length > 0) {
+                const realParcel = realParcelData[0];
                 
-                // 필지 렌더링
-                await this.renderParcel(parcel);
+                // 임시 필지를 실제 필지로 업데이트
+                await this.upgradeToRealParcel(tempPNU, realParcel);
                 
-                // UI에 정보 표시
-                this.displayParcelInfo(parcel);
+                // UI 정보 업데이트
+                this.displayParcelInfo(realParcel);
+                
+                Logger.success('MAP', '🎉 실제 필지 데이터로 업그레이드 완료');
+                Utils.updateStatus('필지 정보 로딩 완료!', 'success');
                 
             } else {
-                Logger.warn('MAP', '해당 위치에 필지 정보가 없습니다');
-                Utils.updateStatus('필지 정보를 찾을 수 없습니다');
+                Logger.info('MAP', '실제 필지 없음 - 임시 필지 유지');
+                Utils.updateStatus('색칠 완료', 'success');
             }
             
         } catch (error) {
-            Utils.handleError('MAP', '필지 정보 조회 실패', error);
-            
-            // 개발 환경에서는 샘플 데이터 사용
-            if (CONFIG.IS_DEVELOPMENT) {
-                Logger.info('MAP', '개발 환경 - 샘플 데이터 사용');
-                const sampleParcel = Utils.getSampleParcel();
-                await this.renderParcel(sampleParcel);
-                this.displayParcelInfo(sampleParcel);
+            Logger.warn('MAP', '실제 데이터 로딩 실패 - 임시 필지 유지', error);
+            // 캐시에서 유사한 지역 데이터 찾기 (Phase 3에서 구현)
+            const cachedData = await this.findCachedNearbyData(lat, lng);
+            if (cachedData) {
+                await this.upgradeToRealParcel(tempPNU, cachedData);
+                Utils.updateStatus('캐시 데이터로 업데이트 완료', 'success');
+            } else {
+                Utils.updateStatus('색칠 완료 (기본 모드)', 'success');
             }
         }
-        
-        Logger.timeEnd('필지 정보 조회');
     }
     
     /**
@@ -355,6 +459,175 @@ class MapEngine {
             
         } catch (error) {
             Utils.handleError('UI', '필지 정보 표시 실패', error);
+        }
+    }
+    
+    /**
+     * 🎨 펄스 효과 애니메이션 (즉시 피드백)
+     */
+    addPulseEffect(polygon) {
+        let pulseCount = 0;
+        const maxPulses = 2;
+        
+        const pulse = () => {
+            if (pulseCount >= maxPulses) return;
+            
+            // 크기 확대
+            polygon.setOptions({
+                strokeWeight: 4,
+                fillOpacity: 0.8
+            });
+            
+            // 0.3초 후 원래 크기로
+            setTimeout(() => {
+                polygon.setOptions({
+                    strokeWeight: 2,
+                    fillOpacity: 0.6
+                });
+                
+                pulseCount++;
+                if (pulseCount < maxPulses) {
+                    setTimeout(pulse, 200);
+                }
+            }, 300);
+        };
+        
+        pulse();
+    }
+    
+    /**
+     * 🎵 클릭 피드백 사운드 (선택적)
+     */
+    playClickSound() {
+        try {
+            // Web Audio API로 간단한 클릭 사운드 생성
+            if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+                const audioContext = new (AudioContext || webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            }
+        } catch (error) {
+            // 사운드 실패해도 무시
+        }
+    }
+    
+    /**
+     * ⚡ 폴백 마커 생성 (최후의 수단)
+     */
+    createFallbackMarker(lat, lng) {
+        const color = window.AppState.currentColor;
+        
+        const marker = new naver.maps.Marker({
+            position: new naver.maps.LatLng(lat, lng),
+            map: this.map,
+            icon: {
+                content: `<div style="width:20px;height:20px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                anchor: new naver.maps.Point(10, 10)
+            }
+        });
+        
+        Logger.info('MAP', '⚡ 폴백 마커 생성', { lat, lng });
+        return marker;
+    }
+    
+    /**
+     * 🔄 임시 필지를 실제 필지로 업그레이드
+     */
+    async upgradeToRealParcel(tempPNU, realParcelData) {
+        try {
+            const tempParcel = this.parcels.get(tempPNU);
+            if (!tempParcel) return;
+            
+            const realPNU = Utils.generatePNU(realParcelData.properties);
+            
+            // 실제 좌표로 폴리곤 업데이트
+            const realCoordinates = this.processCoordinates(realParcelData);
+            if (realCoordinates) {
+                tempParcel.polygon.setPaths(realCoordinates);
+                
+                // 부드러운 전환 효과
+                tempParcel.polygon.setOptions({
+                    fillOpacity: 0.8
+                });
+                setTimeout(() => {
+                    tempParcel.polygon.setOptions({
+                        fillOpacity: 0.6
+                    });
+                }, 500);
+            }
+            
+            // 데이터 업데이트
+            tempParcel.data = realParcelData;
+            tempParcel.isTemp = false;
+            
+            // PNU 업데이트 (Map에서 키 변경)
+            this.parcels.delete(tempPNU);
+            this.parcels.set(realPNU, tempParcel);
+            
+            Logger.success('MAP', '🎉 실제 필지로 업그레이드 완료', realPNU);
+            
+        } catch (error) {
+            Logger.warn('MAP', '업그레이드 실패 - 임시 필지 유지', error);
+        }
+    }
+    
+    /**
+     * 🗄️ Smart Cache에서 근처 데이터 찾기
+     */
+    async findCachedNearbyData(lat, lng) {
+        try {
+            const cached = await window.SmartCache.get(lat, lng);
+            if (cached) {
+                Logger.success('MAP', '🌍 캐시에서 근처 데이터 발견', { lat, lng });
+                
+                // 캐시된 데이터를 VWorld 형식으로 변환
+                if (cached.features) {
+                    return cached.features[0]; // 첫 번째 피처 반환
+                } else if (cached.response?.result?.featureCollection?.features) {
+                    return cached.response.result.featureCollection.features[0];
+                }
+            }
+            return null;
+            
+        } catch (error) {
+            Logger.warn('MAP', '캐시 조회 실패', error);
+            return null;
+        }
+    }
+    
+    /**
+     * 🏁 Multi-API Racing System - 여러 API 동시 호출
+     */
+    async fetchParcelInfoWithRacing(lat, lng) {
+        try {
+            const result = await window.APIRacingSystem.raceForParcelData(lat, lng, 8000);
+            
+            // VWorld 표준 형식으로 변환
+            if (result.features) {
+                return result.features;
+            } else if (result.response?.result?.featureCollection?.features) {
+                return result.response.result.featureCollection.features;
+            } else {
+                Logger.warn('MAP', '예상치 못한 API 응답 형식', result);
+                return [];
+            }
+            
+        } catch (error) {
+            Logger.error('MAP', 'Racing System 실패 - 폴백 사용', error);
+            // 최후의 수단으로 기존 방식 시도
+            return await this.fetchParcelInfo(lat, lng);
         }
     }
 }

@@ -27,6 +27,11 @@ class MapEngine {
             
             // 전역 상태에 저장
             window.AppState.map = this.map;
+            window.map = this.map;  // 테스트 및 오버레이 추적용
+            
+            // 오버레이 추적 시스템 초기화
+            window.map.overlays = {};
+            console.log('🗺️ Overlay tracking system initialized');
             
             // 지도 클릭 이벤트 등록
             this.setupMapEvents();

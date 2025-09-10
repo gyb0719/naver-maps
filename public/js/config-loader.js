@@ -54,7 +54,7 @@ class ConfigLoader {
             
             // 폴백 설정 사용
             this.config = {
-                NAVER_CLIENT_ID: 'xzbnwd2h1z', // 기본 공개 키
+                NAVER_CLIENT_ID: 'x21kpuf1v4', // 기본 공개 키
                 GOOGLE_CLIENT_ID: null,
                 SUPABASE_URL: null,
                 SUPABASE_ANON_KEY: null

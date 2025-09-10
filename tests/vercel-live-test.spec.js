@@ -6,7 +6,7 @@ test.describe('Vercel 라이브 테스트 - Mock API', () => {
         
         try {
             // Vercel 배포 사이트 접속
-            await page.goto('https://naver-field-manager.vercel.app/', { timeout: 30000 });
+            await page.goto('https://parcel-management-system-pink.vercel.app/', { timeout: 30000 });
             await page.waitForTimeout(5000);
             
             // 페이지 로드 확인
@@ -106,7 +106,7 @@ test.describe('Vercel 라이브 테스트 - Mock API', () => {
         console.log('🔍 Vercel에서 검색 기능 테스트');
         
         try {
-            await page.goto('https://naver-field-manager.vercel.app/', { timeout: 30000 });
+            await page.goto('https://parcel-management-system-pink.vercel.app/', { timeout: 30000 });
             await page.waitForTimeout(3000);
             
             // 지도 로드 대기

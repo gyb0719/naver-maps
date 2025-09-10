@@ -19,11 +19,7 @@ async function getParcelInfo(lat, lng) {
         ? CONFIG.VWORLD_API_KEYS 
         : [
             // ULTRATHINK Fallback 키들 (CONFIG 로드 실패 시)
-            '0A0DFD5D-0266-3FAB-8766-06E821646AF7',
-            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A',
-            'E5B1657B-9B6F-3A4B-91EF-98512BE931A1',
-            '8C62256B-1D08-32FF-AB3C-1FCD67242196',
-            '6B854F88-4A5D-303C-B7C8-40858117A95E'
+            '12A51C12-8690-3559-9C2B-9F705D0D8AF3'
         ];
     
     console.log(`🔑 ULTRATHINK: ${apiKeys.length}개 API 키 로드됨 (Config: ${typeof CONFIG !== 'undefined' && CONFIG.VWORLD_API_KEYS ? '성공' : 'Fallback 사용'})`);
@@ -151,11 +147,7 @@ async function loadParcelsInBounds(bounds) {
         ? CONFIG.VWORLD_API_KEYS 
         : [
             // ULTRATHINK Fallback 키들 (CONFIG 로드 실패 시)
-            '0A0DFD5D-0266-3FAB-8766-06E821646AF7',
-            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A',
-            'E5B1657B-9B6F-3A4B-91EF-98512BE931A1',
-            '8C62256B-1D08-32FF-AB3C-1FCD67242196',
-            '6B854F88-4A5D-303C-B7C8-40858117A95E'
+            '12A51C12-8690-3559-9C2B-9F705D0D8AF3'
         ];
     
     console.log(`🔑 ULTRATHINK 영역 로드: ${apiKeys.length}개 API 키 준비됨 (Config: ${typeof CONFIG !== 'undefined' && CONFIG.VWORLD_API_KEYS ? '성공' : 'Fallback 사용'})`);

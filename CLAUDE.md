@@ -15,6 +15,13 @@ node server.js
 # Testing (Playwright)
 npm test                # Run all tests
 npx playwright test     # Run Playwright tests directly
+npx playwright test --ui # Run tests with UI mode
+npx playwright test tests/api-test.spec.js # Run specific test file
+npx playwright test --grep "parcel" # Run tests matching pattern
+
+# Alternative static serving (from README.md legacy setup)
+python -m http.server 8000  # Python server on port 8000
+npx http-server             # Node.js static server
 
 # Note: package.json contains Next.js commands but project uses static Express.js
 npm run dev            # Next.js dev (not used in this static project)
@@ -64,13 +71,16 @@ The server runs on port 3000 by default, with automatic fallback to port 4000 if
 - `db/setup-complete.sql` - Complete database setup script
 
 ### Testing
-- **Playwright tests** in `/tests` directory covering:
-  - API functionality and 5-key fallback mechanisms
-  - Real-time sync and data consistency
-  - Parcel data retrieval and rendering
-  - Search functionality
-  - UI interactions and button testing
-  - Cross-browser compatibility testing
+- **Playwright tests** in `/tests` directory (23 test files) covering:
+  - **API Tests**: `api-test.spec.js`, `api-direct-test.spec.js`, `vworld-test-api.spec.js`
+  - **Integration Tests**: `real-parcel-api-test.spec.js`, `polygon-rendering-test.spec.js`
+  - **Authentication**: `google-auth-ultrathink-test.spec.js`
+  - **Live Environment**: `vercel-live-test.spec.js`, `nominatim-live-test.spec.js`
+  - **Performance**: `quick-polygon-test.spec.js`, `simple-load-test.spec.js`
+  - **UI Components**: `all-buttons.spec.js`, `search.spec.js`
+  - **Configuration**: `config-load-test.spec.js`
+- **Test Configuration**: Chromium with `--disable-web-security` for CORS testing
+- **Test Environment**: Runs against local server on port 3000
 
 ## Important Notes
 
@@ -86,6 +96,13 @@ The server runs on port 3000 by default, with automatic fallback to port 4000 if
 3. Access at `http://localhost:3000` (auto-fallback to :4000)
 4. Monitor sync status via built-in UI indicators
 5. Run tests: `npm test` for end-to-end validation
+
+### Data Architecture Patterns
+- **Triple-Layer Storage**: localStorage (instant) → Supabase (cloud sync) → Google Sheets (backup)
+- **Conflict Resolution**: Data versioning with checksums and exponential backoff
+- **Performance Optimization**: 2-second debounced sync, memory caching (30s TTL), connection pooling
+- **Circuit Breaker**: Auto-disable sync on repeated failures, gradual recovery
+- **Batch Processing**: Dynamic batch sizes based on performance metrics
 
 ### Server Features
 - Automatic port resolution if 3000 is occupied

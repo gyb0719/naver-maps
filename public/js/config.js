@@ -1,14 +1,10 @@
 // API 설정 - 보안 강화를 위해 서버 프록시 사용
 const CONFIG = {
-    NAVER_CLIENT_ID: 'xzbnwd2h1z', // 공개 키이므로 노출 가능
+    NAVER_CLIENT_ID: 'x21kpuf1v4', // 공개 키이므로 노출 가능
     
-    // VWorld API 키들 (기존 작동하던 위치로 복원)
+    // VWorld API 키들 (새 인증키로 단일 설정)
     VWORLD_API_KEYS: [
-        '0A0DFD5D-0266-3FAB-8766-06E821646AF7', // 새로 추가된 키
-        'BBAC532E-A56D-34CF-B520-CE68E8D6D52A',
-        'E5B1657B-9B6F-3A4B-91EF-98512BE931A1', 
-        '8C62256B-1D08-32FF-AB3C-1FCD67242196',
-        '6B854F88-4A5D-303C-B7C8-40858117A95E'
+        '12A51C12-8690-3559-9C2B-9F705D0D8AF3' // 새 인증키
     ],
     
     GOOGLE_SHEETS_URL: '', // Google Apps Script URL (나중에 설정)

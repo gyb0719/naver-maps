@@ -21,7 +21,7 @@ app.use('/pages', express.static(path.join(__dirname, 'srcpages')));
 // 클라이언트 설정 제공 (공개 가능한 설정만)
 app.get('/api/config', (req, res) => {
     res.json({
-        NAVER_CLIENT_ID: process.env.NAVER_CLIENT_ID || 'xzbnwd2h1z',
+        NAVER_CLIENT_ID: process.env.NAVER_CLIENT_ID || 'x21kpuf1v4',
         GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
         SUPABASE_URL: process.env.SUPABASE_URL,
         SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY

@@ -75,7 +75,9 @@
       "WebFetch(domain:navermaps.github.io)",
       "Bash(npm test)",
       "Bash(start http://localhost:3000)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(start http://localhost:4000)",
+      "WebFetch(domain:parcel-management-system-pink.vercel.app)"
     ],
     "deny": [],
     "ask": []

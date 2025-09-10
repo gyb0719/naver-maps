@@ -201,6 +201,15 @@ class APIRacingSystem {
             const data = await api.call(geomFilter, cacheKey);
             const responseTime = Date.now() - startTime;
             
+            console.log(`🧪🧪🧪 ${api.name} RETURNED DATA:`, {
+                type: typeof data,
+                hasFeatures: !!data?.features,
+                hasResponse: !!data?.response,
+                hasResponseResult: !!data?.response?.result,
+                keys: data ? Object.keys(data) : null,
+                dataStructure: data
+            });
+            
             if (data && (data.features || data.response?.result)) {
                 this.updateStats(api.name, responseTime, true);
                 return {

@@ -358,6 +358,7 @@ class APIRacingSystem {
                     const data = await response.json();
                     
                     if (data.response && data.response.status === 'OK') {
+                        console.log('🎉🎉🎉 VWORLD_DIRECT SUCCESS!!! Features:', data.response?.result?.featureCollection?.features?.length || 0);
                         Logger.success('DIRECT', `직접 호출 성공: ${apiKey.substring(0, 8)}`);
                         return data;
                     }
@@ -409,6 +410,7 @@ class APIRacingSystem {
             const data = await response.json();
             
             if (data && data.address) {
+                console.log('🎉🎉🎉 NOMINATIM SUCCESS!!! Address:', data.address.country);
                 Logger.success('NOMINATIM', 'Nominatim 백업 성공');
                 return this.convertNominatimToVWorldFormat(data, lat, lng);
             } else {

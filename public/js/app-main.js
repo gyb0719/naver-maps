@@ -25,13 +25,16 @@ class App {
             // 2단계: 지도 초기화  
             await this.initMap();
             
-            // 3단계: 데이터 로드 및 렌더링
+            // 3단계: 검색 엔진 초기화
+            await this.initSearchEngine();
+            
+            // 4단계: 데이터 로드 및 렌더링
             await this.loadSavedData();
             
-            // 4단계: 전역 함수 등록
+            // 5단계: 전역 함수 등록
             this.registerGlobalFunctions();
             
-            // 5단계: 개발자 도구 설정
+            // 6단계: 개발자 도구 설정
             this.setupDevTools();
             
             this.isInitialized = true;
@@ -71,6 +74,19 @@ class App {
             await window.MapEngine.initMap();
         } else {
             throw new Error('MapEngine이 로드되지 않았습니다');
+        }
+    }
+    
+    /**
+     * 검색 엔진 초기화
+     */
+    async initSearchEngine() {
+        Logger.info('APP', '검색 엔진 초기화');
+        
+        if (window.SearchEngine) {
+            window.SearchEngine.init();
+        } else {
+            Logger.warn('APP', 'SearchEngine이 없어 검색 기능 스킵');
         }
     }
     

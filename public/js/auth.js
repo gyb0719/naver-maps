@@ -504,7 +504,9 @@ const GoogleAuth = {
     }
 };
 
-// 페이지 로드 시 인증 확인
+// 🎯 ULTRATHINK: 구글 인증 임시 비활성화 (고객 미등록으로 인한 테스트 제한)
+// 페이지 로드 시 인증 확인 - 임시 주석 처리
+/*
 document.addEventListener('DOMContentLoaded', function() {
     // login.html이 아닌 경우에만 인증 확인
     if (!window.location.pathname.includes('login.html')) {
@@ -556,6 +558,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+    }
+});
+*/
+
+// 🎯 임시 대체: 구글 인증 없이 바로 앱 진입
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 ULTRATHINK: 구글 인증 스킵모드 - 바로 앱 진입');
+    
+    // 기존 로그인 관련 localStorage 정리 (충돌 방지)
+    if (localStorage.getItem('googleToken') && !confirm('기존 구글 로그인 데이터가 있습니다. 테스트를 위해 제거하시겠습니까?')) {
+        // 사용자가 취소하면 기존 데이터 유지
+        console.log('기존 로그인 데이터 유지');
+    } else {
+        // 테스트를 위해 기존 데이터 정리
+        localStorage.removeItem('googleToken');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('tokenExpiry');
+        console.log('테스트용 - 기존 로그인 데이터 정리 완료');
     }
 });
 

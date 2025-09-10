@@ -7,34 +7,28 @@ class APIRacingSystem {
     constructor() {
         this.apiEndpoints = [
             {
+                name: 'Cache',
+                priority: 0, // 최고 우선순위
+                enabled: true,
+                call: this.callCache.bind(this)
+            },
+            {
                 name: 'VWorld_Serverless',
                 priority: 1,
                 enabled: true,
                 call: this.callVWorldServerless.bind(this)
             },
             {
-                name: 'VWorld_Direct',
-                priority: 2, 
-                enabled: true,
-                call: this.callVWorldDirect.bind(this)
-            },
-            {
                 name: 'VWorld_Edge',
                 priority: 3,
-                enabled: false, // Phase 2에서 활성화 예정
+                enabled: false, // 추후 구현 예정
                 call: this.callVWorldEdge.bind(this)
             },
             {
                 name: 'Backup_OSM',
-                priority: 4,
+                priority: 2, // 우선순위 상승
                 enabled: true,
                 call: this.callBackupOSM.bind(this)
-            },
-            {
-                name: 'Cache',
-                priority: 0, // 최고 우선순위
-                enabled: true,
-                call: this.callCache.bind(this)
             }
         ];
         
@@ -73,7 +67,7 @@ class APIRacingSystem {
             
             if (winner.timeout) {
                 Logger.warn('RACE', '⏰ 모든 API 타임아웃');
-                return this.getFallbackData(lat, lng);
+                throw new Error('모든 API가 타임아웃되었습니다');
             }
             
             Logger.success('RACE', `🏆 승자: ${winner.apiName}`, {
@@ -97,8 +91,8 @@ class APIRacingSystem {
         } catch (error) {
             Logger.error('RACE', '🚫 모든 API 실패', error);
             
-            // 최후의 수단: 폴백 데이터 
-            return this.getFallbackData(lat, lng);
+            // 더미 데이터 생성 금지 - 실제 에러 발생
+            throw new Error(`모든 API 호출 실패: ${error.message}`);
         }
     }
     
@@ -191,34 +185,6 @@ class APIRacingSystem {
         return await response.json();
     }
     
-    /**
-     * ⚡ VWorld Direct 호출 (클라이언트 직접)
-     */
-    async callVWorldDirect(geomFilter) {
-        const params = new URLSearchParams({
-            service: 'data',
-            request: 'GetFeature',
-            data: 'LP_PA_CBND_BUBUN', 
-            key: CONFIG.VWORLD_API_KEYS[0],
-            geometry: 'true',
-            geomFilter: geomFilter,
-            size: '10',
-            format: 'json',
-            crs: 'EPSG:4326'
-        });
-        
-        // CORS 우회 시도
-        const response = await fetch(`https://api.vworld.kr/req/data?${params}`, {
-            method: 'GET',
-            mode: 'cors'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`직접 호출 실패: HTTP ${response.status}`);
-        }
-        
-        return await response.json();
-    }
     
     /**
      * 🔧 VWorld Edge Functions (Phase 2 후반에 구현)
@@ -228,41 +194,63 @@ class APIRacingSystem {
     }
     
     /**
-     * 🔄 Backup OpenStreetMap 호출
+     * 🔄 Backup OpenStreetMap 호출 (안정화)
      */
     async callBackupOSM(geomFilter) {
-        // OpenStreetMap Overpass API로 기본적인 위치 정보 제공
-        const [lng, lat] = geomFilter.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/)?.[1,2] || [];
-        if (!lng || !lat) throw new Error('좌표 파싱 실패');
-        
-        const overpassQuery = `
-            [out:json][timeout:5];
-            (
-                way["landuse"](around:50,${lat},${lng});
-                way["building"](around:50,${lat},${lng});
-                relation["type"="multipolygon"](around:50,${lat},${lng});
-            );
-            out geom;
-        `;
-        
-        const response = await fetch('https://overpass-api.de/api/interpreter', {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: overpassQuery
-        });
-        
-        if (!response.ok) throw new Error(`OSM API 실패: ${response.status}`);
-        
-        const osmData = await response.json();
-        
-        // OSM 데이터를 VWorld 형식으로 변환
-        return this.convertOSMToVWorldFormat(osmData, lat, lng);
+        try {
+            // 좌표 추출 및 숫자 변환
+            const match = geomFilter.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
+            if (!match) throw new Error('좌표 파싱 실패');
+            
+            const lng = parseFloat(match[1]);
+            const lat = parseFloat(match[2]);
+            
+            if (isNaN(lng) || isNaN(lat)) throw new Error('유효하지 않은 좌표');
+            
+            Logger.info('OSM', 'OSM API 호출', { lat, lng });
+            
+            // 간단한 OSM 쿼리 (타임아웃 단축)
+            const overpassQuery = `
+                [out:json][timeout:3];
+                (
+                    way["landuse"](around:30,${lat},${lng});
+                    way["building"](around:30,${lat},${lng});
+                );
+                out geom;
+            `;
+            
+            const response = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: overpassQuery
+            });
+            
+            if (!response.ok) throw new Error(`OSM API 실패: ${response.status}`);
+            
+            const osmData = await response.json();
+            
+            // OSM 데이터를 VWorld 형식으로 변환
+            return this.convertOSMToVWorldFormat(osmData, lat, lng);
+            
+        } catch (error) {
+            Logger.warn('OSM', 'OSM API 실패', error.message);
+            // 더미 데이터 생성 금지 - 에러 발생
+            throw error;
+        }
     }
     
     /**
      * 🔄 OSM → VWorld 형식 변환
      */
     convertOSMToVWorldFormat(osmData, lat, lng) {
+        // 좌표를 숫자로 안전하게 변환
+        const numLat = parseFloat(lat);
+        const numLng = parseFloat(lng);
+        
+        if (isNaN(numLat) || isNaN(numLng)) {
+            throw new Error('유효하지 않은 좌표값');
+        }
+        
         const features = [];
         
         if (osmData.elements && osmData.elements.length > 0) {
@@ -277,7 +265,7 @@ class APIRacingSystem {
                         properties: {
                             PNU: `OSM_${Date.now()}_${index}`,
                             jibun: `OSM 백업 필지 ${index + 1}`,
-                            addr: `위도: ${lat.toFixed(6)}, 경도: ${lng.toFixed(6)}`,
+                            addr: `위도: ${numLat.toFixed(6)}, 경도: ${numLng.toFixed(6)}`,
                             backup: true,
                             source: 'OpenStreetMap'
                         }
@@ -286,29 +274,9 @@ class APIRacingSystem {
             });
         }
         
-        // 데이터가 없으면 기본 사각형 생성
+        // OSM 데이터가 없으면 에러 발생 (더미 데이터 생성 안함)
         if (features.length === 0) {
-            const offset = 0.0001;
-            features.push({
-                type: 'Feature',
-                geometry: {
-                    type: 'Polygon', 
-                    coordinates: [[
-                        [parseFloat(lng) - offset, parseFloat(lat) - offset],
-                        [parseFloat(lng) + offset, parseFloat(lat) - offset],
-                        [parseFloat(lng) + offset, parseFloat(lat) + offset], 
-                        [parseFloat(lng) - offset, parseFloat(lat) + offset],
-                        [parseFloat(lng) - offset, parseFloat(lat) - offset]
-                    ]]
-                },
-                properties: {
-                    PNU: `FALLBACK_${Date.now()}`,
-                    jibun: '백업 필지',
-                    addr: `위도: ${lat.toFixed(6)}, 경도: ${lng.toFixed(6)}`,
-                    backup: true,
-                    source: 'Fallback'
-                }
-            });
+            throw new Error('OSM에서 데이터를 찾을 수 없음');
         }
         
         return { features };
@@ -365,35 +333,6 @@ class APIRacingSystem {
         }
     }
     
-    /**
-     * 🆘 폴백 데이터 생성 (최후의 수단)
-     */
-    getFallbackData(lat, lng) {
-        Logger.info('RACE', '🆘 폴백 데이터 생성', { lat, lng });
-        
-        const offset = 0.0001;
-        return {
-            features: [{
-                type: 'Feature',
-                geometry: {
-                    type: 'Polygon',
-                    coordinates: [[
-                        [lng - offset, lat - offset],
-                        [lng + offset, lat - offset], 
-                        [lng + offset, lat + offset],
-                        [lng - offset, lat + offset],
-                        [lng - offset, lat - offset]
-                    ]]
-                },
-                properties: {
-                    PNU: `FALLBACK_${Date.now()}`,
-                    jibun: '기본 필지',
-                    addr: `클릭 위치: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-                    fallback: true
-                }
-            }]
-        };
-    }
     
     /**
      * 📈 통계 정보 조회

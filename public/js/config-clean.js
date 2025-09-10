@@ -18,7 +18,7 @@ const CONFIG = {
     
     // VWorld API 키 (검증된 작동 키)
     VWORLD_API_KEYS: [
-        'E5B1657B-9B6F-3A4B-91EF-98512BE931A1' // ✅ 검증 완료 - 실제 필지 데이터 반환
+        '12A51C12-8690-3559-9C2B-9F705D0D8AF3' // ✅ 프로덕션 등록 키 - 실제 필지 데이터 반환
     ],
     
     // Supabase 설정  

@@ -251,9 +251,19 @@ class MapEngine {
             console.log('✅ Polygon created successfully:', !!polygon);
             
             // 🗺️ 오버레이 추적 시스템에 폴리곤 저장
+            console.log('🔍 Overlay system check:', {
+                hasWindowMap: !!window.map,
+                hasOverlays: !!window.map?.overlays,
+                overlaysType: typeof window.map?.overlays,
+                pnu: pnu
+            });
+            
             if (window.map && window.map.overlays) {
                 window.map.overlays[pnu] = polygon;
                 console.log('🗺️ Polygon stored in overlays system:', pnu);
+                console.log('🗺️ Total overlays count:', Object.keys(window.map.overlays).length);
+            } else {
+                console.error('❌ Cannot store polygon - overlays system not available!');
             }
             
             // 부드러운 등장 효과 (펄스는 유지하되 사운드 제거)

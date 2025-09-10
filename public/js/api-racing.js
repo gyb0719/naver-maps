@@ -84,58 +84,86 @@ class APIRacingSystem {
     }
     
     /**
-     * 🏁 실제 Racing 실행 함수
+     * 🏁 실제 Racing 실행 함수 (수정됨: 모든 API 동시 호출)
      */
     async executeRace(enabledAPIs, geomFilter, cacheKey, maxWaitTime) {
-        // 모든 API를 동시에 호출 (실패해도 reject하지 않음)
-        const racingPromises = enabledAPIs.map(api => 
-            this.wrapAPICallSafe(api, geomFilter, cacheKey)
-        );
+        Logger.info('RACE', `🏁 ${enabledAPIs.length}개 API 동시 Racing 시작`, {
+            apis: enabledAPIs.map(api => api.name)
+        });
         
-        // 타임아웃과 함께 모든 결과 기다리기  
-        const timeoutPromise = new Promise(resolve => 
-            setTimeout(() => resolve({ timeout: true }), maxWaitTime)
-        );
+        // 모든 API를 동시에 호출 (개별 타임아웃 설정)
+        const racingPromises = enabledAPIs.map(async (api, index) => {
+            try {
+                // 개별 API에 타임아웃 적용
+                const apiPromise = this.wrapAPICallSafe(api, geomFilter, cacheKey);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error(`${api.name} 타임아웃`)), maxWaitTime)
+                );
+                
+                return await Promise.race([apiPromise, timeoutPromise]);
+            } catch (error) {
+                Logger.warn('RACE', `⚠️ ${api.name} 예외 발생: ${error.message}`);
+                return {
+                    apiName: api.name,
+                    error: error.message,
+                    success: false,
+                    responseTime: 0
+                };
+            }
+        });
         
         try {
-            const raceResult = await Promise.race([
-                Promise.allSettled(racingPromises),
-                timeoutPromise
-            ]);
+            // 모든 API 결과 기다리기 (성공/실패 무관)
+            const raceResults = await Promise.allSettled(racingPromises);
             
-            if (raceResult.timeout) {
-                Logger.warn('RACE', '⏰ 전체 타임아웃');
-                throw new Error('모든 API가 타임아웃되었습니다');
-            }
+            Logger.info('RACE', '📋 모든 API 결과 수집 완료', {
+                total: raceResults.length,
+                fulfilled: raceResults.filter(r => r.status === 'fulfilled').length,
+                rejected: raceResults.filter(r => r.status === 'rejected').length
+            });
             
-            // 성공한 결과들만 필터링
-            const successfulResults = raceResult
-                .filter(result => result.status === 'fulfilled' && result.value.success)
-                .map(result => result.value)
-                .sort((a, b) => {
-                    // 우선순위가 낮을수록(숫자가 작을수록), 응답시간이 빠를수록 우선
-                    const priorityDiff = (this.apiEndpoints.find(api => api.name === a.apiName)?.priority || 99) - 
-                                        (this.apiEndpoints.find(api => api.name === b.apiName)?.priority || 99);
-                    return priorityDiff !== 0 ? priorityDiff : a.responseTime - b.responseTime;
-                });
+            // 성공한 결과들만 추출 및 정렬
+            const successfulResults = [];
+            const failedResults = [];
+            
+            raceResults.forEach((result, index) => {
+                const apiName = enabledAPIs[index]?.name || 'Unknown';
+                
+                if (result.status === 'fulfilled' && result.value.success) {
+                    successfulResults.push(result.value);
+                    Logger.success('RACE', `✅ ${apiName} 성공`, {
+                        time: result.value.responseTime,
+                        features: result.value.data?.features?.length || result.value.data?.response?.result?.featureCollection?.features?.length || 0
+                    });
+                } else {
+                    const error = result.status === 'fulfilled' ? result.value.error : result.reason?.message || 'Unknown error';
+                    failedResults.push({ api: apiName, error });
+                    Logger.warn('RACE', `❌ ${apiName} 실패: ${error}`);
+                }
+            });
+            
+            // 우선순위에 따라 정렬
+            successfulResults.sort((a, b) => {
+                const priorityA = this.apiEndpoints.find(api => api.name === a.apiName)?.priority || 99;
+                const priorityB = this.apiEndpoints.find(api => api.name === b.apiName)?.priority || 99;
+                return priorityA !== priorityB ? priorityA - priorityB : a.responseTime - b.responseTime;
+            });
             
             if (successfulResults.length === 0) {
-                const failedResults = raceResult
-                    .map((result, index) => ({
-                        api: enabledAPIs[index]?.name || 'Unknown',
-                        error: result.status === 'fulfilled' ? result.value.error : result.reason?.message || 'Unknown error'
-                    }));
-                
-                Logger.error('RACE', '🚫 모든 API 실패', { failures: failedResults });
+                Logger.error('RACE', '🚫 모든 API 실패', { 
+                    failures: failedResults,
+                    totalAttempted: enabledAPIs.length 
+                });
                 throw new Error(`모든 API 실패 (${failedResults.length}개 시도)`);
             }
             
             const winner = successfulResults[0];
             Logger.success('RACE', `🏆 승자: ${winner.apiName}`, {
                 time: winner.responseTime,
-                features: winner.data?.features?.length || 0,
+                features: winner.data?.features?.length || winner.data?.response?.result?.featureCollection?.features?.length || 0,
                 totalAPIs: enabledAPIs.length,
-                successfulAPIs: successfulResults.length
+                successfulAPIs: successfulResults.length,
+                failedAPIs: failedResults.length
             });
             
             // Smart Cache에 저장
@@ -149,7 +177,10 @@ class APIRacingSystem {
             return winner.data;
             
         } catch (error) {
-            Logger.error('RACE', '🚫 Racing System 완전 실패', error);
+            Logger.error('RACE', '🚫 Racing System 완전 실패', {
+                error: error.message,
+                enabledAPIs: enabledAPIs.map(api => api.name)
+            });
             throw new Error(`API Racing 실패: ${error.message}`);
         }
     }

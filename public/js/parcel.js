@@ -395,11 +395,8 @@ async function handleParcelLeftClick(parcel, polygon) {
     const searchParcelData = window.searchParcels && window.searchParcels.get(pnu);
     const jibun = formatJibun(parcel.properties);
     
-    // 🎯 ULTRATHINK: 색칠 모드가 꺼져있으면 아무것도 안 함
-    if (!window.paintModeEnabled) {
-        console.log('🚫 색칠 모드 OFF - 왼쪽 클릭 무시');
-        return;
-    }
+    // 🎯 ULTRATHINK: 왼쪽 클릭은 항상 색칠 가능 (직관적 UX)
+    console.log('🎨 왼쪽 클릭 감지 - 색칠 모드:', window.paintModeEnabled);
     
     // 🎯 ULTRATHINK: 검색 필지(보라색)는 색칠 안 함
     const isSearchParcel = (parcelData && parcelData.color === '#9370DB') || 
@@ -425,16 +422,21 @@ async function handleParcelLeftClick(parcel, polygon) {
         }, 3000);
     }
     
-    // 🎯 ULTRATHINK: 무조건 색칠 (저장된 정보 여부와 상관없이)
-    console.log('🎨 ULTRATHINK 왼쪽 클릭 - 바로 색칠:', currentColor, jibun);
+    // 🎯 ULTRATHINK: 색상 확인 후 무조건 색칠
+    console.log('🎨 ULTRATHINK 왼쪽 클릭 - currentColor:', currentColor, 'jibun:', jibun);
     console.log('🎨 PNU:', pnu, '필지 데이터 존재:', !!parcelData);
-    applyColorToParcel(parcel, currentColor);
+    
+    // currentColor가 undefined이면 기본 빨간색으로 설정
+    const colorToApply = currentColor || '#FF0000';
+    console.log('🎨 적용할 색상:', colorToApply);
+    
+    applyColorToParcel(parcel, colorToApply);
     
     // 로그만 남기고 팝업 없음
-    if (parcelData && parcelData.color !== 'transparent' && parcelData.color !== currentColor) {
-        console.log(`🔄 색상 변경: ${parcelData.color} → ${currentColor}`);
+    if (parcelData && parcelData.color !== 'transparent' && parcelData.color !== colorToApply) {
+        console.log(`🔄 색상 변경: ${parcelData.color} → ${colorToApply}`);
     } else {
-        console.log(`🎨 필지 색칠 완료: ${jibun}`);
+        console.log(`🎨 필지 색칠 완료: ${jibun} - ${colorToApply}`);
     }
 }
 
@@ -444,11 +446,8 @@ async function handleParcelRightClick(parcel, polygon) {
     const parcelData = window.clickParcels.get(pnu);
     const jibun = formatJibun(parcel.properties);
     
-    // 색칠 모드가 꺼져있으면 색 지우기도 불가
-    if (!window.paintModeEnabled) {
-        console.log('🚫 색칠 모드 OFF - 색 지우기 불가');
-        return;
-    }
+    // 🎯 ULTRATHINK: 오른쪽 클릭은 항상 색 지우기 가능 (직관적 UX)
+    console.log('🗑️ 오른쪽 클릭 감지 - 색칠 모드:', window.paintModeEnabled);
     
     // 색칠되어 있는지 확인
     if (parcelData && parcelData.color !== 'transparent') {

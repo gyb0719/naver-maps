@@ -78,7 +78,8 @@
       "Bash(tree:*)",
       "Bash(start http://localhost:4000)",
       "WebFetch(domain:parcel-management-system-pink.vercel.app)",
-      "Read(//Users/ai-code-lab/Downloads/**)"
+      "Read(//Users/ai-code-lab/Downloads/**)",
+      "Bash(open http://localhost:4000)"
     ],
     "deny": [],
     "ask": []

@@ -34,6 +34,9 @@ function initMap() {
     map = new naver.maps.Map('map', mapOptions);
     window.map = map;  // 전역 변수로 노출 (검색 기능 사용)
     
+    // 오버레이 추적 시스템 초기화
+    window.map.overlays = {};
+    
     // ViewportRenderer 초기화
     if (window.ViewportRenderer) {
         window.viewportRenderer = new ViewportRenderer(map);

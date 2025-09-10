@@ -111,6 +111,14 @@ class MapEngine {
             // 🎯 API 우선 호출 - 실제 필지 데이터 먼저 가져오기
             const realParcelData = await this.fetchParcelInfoWithRacing(lat, lng);
             
+            console.log('🔍🔍🔍 MAP-ENGINE RECEIVED DATA:', {
+                type: typeof realParcelData,
+                isArray: Array.isArray(realParcelData),
+                length: realParcelData?.length,
+                firstItem: realParcelData?.[0],
+                keys: realParcelData ? Object.keys(realParcelData) : null
+            });
+            
             // 강화된 데이터 검증
             if (!realParcelData || realParcelData.length === 0) {
                 Logger.error('MAP', '해당 위치에 필지 데이터가 없음', { 
@@ -735,12 +743,24 @@ class MapEngine {
         try {
             const result = await window.APIRacingSystem.raceForParcelData(lat, lng, 8000);
             
+            console.log('🎯🎯🎯 RACING RESULT RAW:', {
+                type: typeof result,
+                hasFeatures: !!result.features,
+                hasResponse: !!result.response,
+                featuresLength: result.features?.length,
+                responseFeatures: result.response?.result?.featureCollection?.features?.length,
+                keys: Object.keys(result || {})
+            });
+            
             // VWorld 표준 형식으로 변환
             if (result.features) {
+                console.log('🟢 Using result.features, length:', result.features.length);
                 return result.features;
             } else if (result.response?.result?.featureCollection?.features) {
+                console.log('🟡 Using response.result path, length:', result.response.result.featureCollection.features.length);
                 return result.response.result.featureCollection.features;
             } else {
+                console.log('❌ No valid features found in result');
                 Logger.warn('MAP', '예상치 못한 API 응답 형식', result);
                 return [];
             }

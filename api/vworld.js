@@ -22,7 +22,7 @@ export default async function handler(req, res) {
             service = 'data',
             request: requestType = 'GetFeature',
             data: dataType = 'LP_PA_CBND_BUBUN',
-            key = 'E5B1657B-9B6F-3A4B-91EF-98512BE931A1',
+            key = '12A51C12-8690-3559-9C2B-9F705D0D8AF3',
             geometry = 'true',
             geomFilter,
             size = '10',

@@ -68,6 +68,7 @@ class APIRacingSystem {
             .filter(api => api.enabled)
             .sort((a, b) => a.priority - b.priority);
         
+        console.log('🔥🔥🔥 RACEFORPARCELDATA v4.0 ENABLED APIS:', enabledAPIs.length, enabledAPIs.map(api => api.name));
         Logger.info('RACE', `🔥 ${enabledAPIs.length}개 API 동시 Racing`, 
             { apis: enabledAPIs.map(api => api.name) });
         
@@ -88,6 +89,7 @@ class APIRacingSystem {
      * 🏁 실제 Racing 실행 함수 (수정됨: 모든 API 동시 호출)
      */
     async executeRace(enabledAPIs, geomFilter, cacheKey, maxWaitTime) {
+        console.log('🚨🚨🚨 EXECUTERACE CALLED!!! v4.0 ENABLED APIS:', enabledAPIs.length, enabledAPIs.map(api => api.name));
         Logger.info('RACE', `🏁 CACHE BUSTER v4.0: ${enabledAPIs.length}개 API 동시 Racing 시작`, {
             apis: enabledAPIs.map(api => api.name),
             version: 'v4.0-2025-01-17'

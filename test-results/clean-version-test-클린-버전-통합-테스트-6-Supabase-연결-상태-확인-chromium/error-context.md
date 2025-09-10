@@ -1,0 +1,67 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - heading "네이버 지도 필지 관리 프로그램" [level=1] [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - button "일반지도" [ref=e7] [cursor=pointer]
+        - button "위성지도" [ref=e8] [cursor=pointer]
+        - button "지적편집도" [ref=e9] [cursor=pointer]
+        - button "거리뷰" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]:
+        - textbox "지번 또는 주소 검색" [ref=e12]
+        - button "검색" [ref=e13] [cursor=pointer]
+        - button "검색 OFF" [ref=e14] [cursor=pointer]
+      - button "캘린더" [ref=e15] [cursor=pointer]:
+        - img [ref=e16] [cursor=pointer]
+        - generic [ref=e21] [cursor=pointer]: 캘린더
+  - generic [ref=e22]:
+    - complementary [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "필지 색상" [level=3] [ref=e26]
+          - button "🎨 색칠 ON" [ref=e27] [cursor=pointer]:
+            - generic [ref=e28] [cursor=pointer]: 🎨
+            - generic [ref=e29] [cursor=pointer]: 색칠 ON
+        - generic [ref=e40]: "선택된 색상:"
+        - generic [ref=e42]:
+          - button "선택 초기화" [ref=e43] [cursor=pointer]
+          - button "검색 초기화" [ref=e44] [cursor=pointer]
+      - generic [ref=e45]:
+        - heading "필지 정보" [level=3] [ref=e46]
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]: 지번
+            - 'textbox "예: 123-4" [ref=e50]'
+          - generic [ref=e51]:
+            - generic [ref=e52]: 소유자 이름
+            - textbox "홍길동" [ref=e53]
+          - generic [ref=e54]:
+            - generic [ref=e55]: 소유자 주소
+            - textbox "서울시 강남구..." [ref=e56]
+          - generic [ref=e57]:
+            - generic [ref=e58]: 연락처
+            - textbox "010-1234-5678" [ref=e59]
+          - generic [ref=e60]:
+            - generic [ref=e61]: 메모
+            - textbox "추가 메모..." [ref=e62]
+          - generic [ref=e63]:
+            - button "저장" [ref=e64] [cursor=pointer]
+            - button "초기화" [ref=e65] [cursor=pointer]
+          - generic [ref=e66]:
+            - button "구글 시트 전송" [ref=e67] [cursor=pointer]
+            - button "엑셀 복사" [ref=e68] [cursor=pointer]
+    - generic [ref=e70]:
+      - generic:
+        - generic [ref=e104]: 300m
+        - link "NAVER" [ref=e105]:
+          - /url: https://ssl.pstatic.net/static/maps/mantle/notice/legal.html
+          - img "NAVER" [ref=e106]
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic: © NAVER Corp.
+```

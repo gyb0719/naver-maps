@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#667eea">
-    <title>NAVER Maps Field Management Program</title>
+    <title>네이버 지도 필지 관리 프로그램 v2.0</title>
     
     <!-- 네이버 지도 API -->
     <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=xzbnwd2h1z&submodules=geocoder,panorama"></script>
@@ -207,36 +207,12 @@
     </div>
     
 
-    <!-- JavaScript -->
-    <script>
-        // 디버깅용
-        window.addEventListener('load', function() {
-            console.log('window load event');
-        });
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOMContentLoaded event');
-        });
-    </script>
-    <script src="/js/config-client.js"></script>
-    <script src="/js/config-loader.js"></script>
-    <script src="/js/rate-limiter.js"></script>
-    <script src="/js/virtual-scroller.js"></script>
-    <script src="/js/viewport-renderer.js"></script>
-    <script src="/js/indexeddb-cache.js"></script>
-    <script src="/js/data-manager-simple.js"></script>
-    <script src="/js/data-manager-realtime.js"></script>
-    <script src="/js/user-manager.js"></script>
-    <script src="/js/realtime-ui.js"></script>
-    <script src="/js/sync-status.js"></script>
-    <script src="/js/auth.js"></script>
-    <script src="/js/utils.js"></script>
-    <script src="/js/calendar.js"></script>
-    <script src="/js/map.js"></script>
-    <script src="/js/parcel.js"></script>
-    <script src="/js/parcel-manager.js"></script>
-    <script src="/js/search.js"></script>
-    <script src="/js/sheets.js"></script>
-    <script src="/js/mobile-handler.js"></script>
+    <!-- 🎯 ULTRATHINK: 새로운 클린 JavaScript 파일들 (6개로 단순화) -->
+    <script src="/js/config-clean.js"></script>
+    <script src="/js/logger.js"></script> 
+    <script src="/js/map-engine.js"></script>
+    <script src="/js/data-simple.js"></script>
+    <script src="/js/ui-handler.js"></script>
+    <script src="/js/app-main.js"></script>
 </body>
 </html>

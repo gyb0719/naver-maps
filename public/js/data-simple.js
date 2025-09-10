@@ -11,16 +11,37 @@ class DataManager {
     }
     
     /**
-     * Supabase 초기화
+     * 🎯 ULTRATHINK: 안전한 Supabase 초기화 (오류 방어)
      */
     async initSupabase() {
         try {
+            // Supabase 라이브러리 로드 확인
+            if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                throw new Error('Supabase 라이브러리가 로드되지 않았습니다');
+            }
+
+            // Supabase 설정 확인
+            if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+                throw new Error('Supabase 설정이 누락되었습니다');
+            }
+
+            // Supabase 클라이언트 생성
             this.supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+            
+            // 연결 테스트
             await this.testConnection();
-            Logger.success('DATA', 'Supabase 연결 성공');
+            this.isConnected = true;
+            
+            console.log('[DATA] ✅ Supabase 연결 성공');
         } catch (error) {
-            Utils.handleError('DATA', 'Supabase 초기화 실패', error);
+            console.warn('[DATA] ⚠️ Supabase 초기화 실패:', error.message);
+            console.warn('[DATA] 📝 로컬 저장소 모드로 동작합니다');
+            
+            this.supabase = null;
             this.isConnected = false;
+            
+            // 오류가 있어도 앱이 중단되지 않도록 처리
+            // Utils.handleError 대신 경고만 표시
         }
     }
     

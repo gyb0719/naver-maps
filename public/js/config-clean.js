@@ -3,9 +3,9 @@
  * 환경 감지, API 키 관리, 기본 유틸리티
  */
 
-// 환경 감지
-const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const IS_DEVELOPMENT = IS_LOCAL || window.location.hostname.includes('ngrok') || window.location.hostname.includes('preview');
+// 🎯 ULTRATHINK: 임시로 모든 환경에서 모킹 사용 (VWorld API 프록시 오류 방지)
+const IS_LOCAL = true; // 강제로 로컬 모드 활성화  
+const IS_DEVELOPMENT = true; // 강제로 개발 모드 활성화 (모킹 데이터 사용)
 
 // 메인 설정 객체
 const CONFIG = {
@@ -279,3 +279,20 @@ if (CONFIG.DEBUG) {
         defaultColor: window.AppState.currentColor
     });
 }
+
+// 🎯 ULTRATHINK: 데모 모드 시각적 표시
+document.addEventListener('DOMContentLoaded', () => {
+    const header = document.querySelector('.header h1');
+    if (header && CONFIG.IS_DEVELOPMENT) {
+        // 원래 제목에 데모 표시 추가
+        header.innerHTML = `
+            <span style="color: #00ff00;">[데모 모드]</span> 
+            네이버 지도 필지 관리 프로그램
+            <small style="font-size: 12px; opacity: 0.8; display: block;">
+                샘플 데이터로 동작합니다
+            </small>
+        `;
+        
+        console.log('🎯 데모 모드 활성화 - 모킹 데이터 사용');
+    }
+});

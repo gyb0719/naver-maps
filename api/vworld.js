@@ -17,15 +17,11 @@ module.exports = async function handler(req, res) {
         console.log('🚀 VWorld Proxy v7.0 fetch 기반 시작');
         console.log('Request query:', req.query);
         
-        // 🚀 ULTRATHINK v8.0: 새로운 API 키 풀 (2025년 1월 업데이트)
+        // 🎯 실제 유효한 VWorld API 키들 (더미 키 절대 사용 금지)
         const apiKeys = [
-            'AA665B1D-F091-3D8A-81BA-B5B58D5D59A7', // 2025 신규키 1
-            'F7A2B8C5-9D3E-4A1F-B6C7-D8E9F0A1B2C3', // 2025 신규키 2
-            '12A51C12-8690-3559-9C2B-9F705D0D8AF3', // 백업키 1
-            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A', // 백업키 2
-            '6B854F88-4A5D-303C-B7C8-40858117A95E', // 백업키 3
-            'C4D5E6F7-G8H9-I0J1-K2L3-M4N5O6P7Q8R9', // 테스트키
-            '1A2B3C4D-5E6F-7G8H-9I0J-K1L2M3N4O5P6'  // 예비키
+            '12A51C12-8690-3559-9C2B-9F705D0D8AF3', // 메인 키
+            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A', // 백업 키 1
+            '6B854F88-4A5D-303C-B7C8-40858117A95E'  // 백업 키 2
         ];
         
         const {

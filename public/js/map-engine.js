@@ -51,125 +51,71 @@ class MapEngine {
     }
 
     /**
-     * 🎯 지도 클릭 핸들러 - 필지 조회 및 렌더링
+     * 🎯 지도 클릭 핸들러 - 실제 필지 조회 및 렌더링
      */
     async handleMapClick(lat, lng) {
         if (!this.isInitialized) return;
         
-        Logger.action('MAP', '🎯 클릭 위치에 색칠 시작', { lat, lng });
-        Utils.updateStatus('필지 색칠 중...', 'loading');
+        Logger.action('MAP', '🎯 실제 필지 데이터 조회 시작', { lat, lng });
+        Utils.updateStatus('실제 필지 데이터 로딩 중...', 'loading');
         
         try {
-            // 🎯 ULTRATHINK v2.0: API 실패 시에도 클릭 위치에 색칠 기능 제공
-            Logger.info('MAP', '🎨 API 우회 - 클릭 위치 직접 색칠 시작');
+            // 🎯 실제 VWorld API 호출 - 더미 데이터 사용 금지
+            const realParcelData = await this.fetchParcelInfoWithRacing(lat, lng);
             
-            // 클릭 위치 기반 더미 필지 생성 및 색칠
-            const clickedParcel = await this.createClickBasedParcel(lat, lng);
-            
-            if (clickedParcel) {
-                Logger.success('MAP', '✅ 클릭 위치 색칠 성공');
-                Utils.updateStatus('✅ 해당 위치에 색칠되었습니다.', 'success');
-                
-                // 색칠된 필지 정보 패널에 표시
-                this.showParcelInfo(clickedParcel);
-            } else {
-                Logger.warn('MAP', '⚠️ 색칠 실패 - 폴리곤 생성 불가');
-                Utils.updateStatus('⚠️ 색칠할 수 없는 위치입니다.', 'warning');
-            }
-            
-        } catch (error) {
-            Logger.error('MAP', '❌ 색칠 실패', error);
-            Utils.updateStatus(`❌ 색칠 오류: ${error.message}`, 'error');
-        }
-    }
-    
-    /**
-     * 🎨 클릭 위치 기반 필지 생성 및 색칠
-     */
-    async createClickBasedParcel(lat, lng) {
-        try {
-            // 현재 선택된 색상
-            const color = window.AppState?.currentColor || CONFIG.COLORS.red || '#FF0000';
-            
-            // 클릭 위치 중심으로 작은 사각형 폴리곤 생성 (약 10m x 10m)
-            const offset = 0.00005; // 약 5m
-            const bounds = [
-                [lng - offset, lat - offset], // 좌하
-                [lng + offset, lat - offset], // 우하
-                [lng + offset, lat + offset], // 우상
-                [lng - offset, lat + offset], // 좌상
-                [lng - offset, lat - offset]  // 닫기
-            ];
-            
-            // 네이버 지도 좌표로 변환
-            const naverPaths = bounds.map(coord => new naver.maps.LatLng(coord[1], coord[0]));
-            
-            // 폴리곤 생성
-            const polygon = new naver.maps.Polygon({
-                map: this.map,
-                paths: naverPaths,
-                fillColor: color,
-                fillOpacity: 0.8,
-                strokeColor: color,
-                strokeWeight: 2,
-                strokeOpacity: 1.0,
-                clickable: true,
-                zIndex: 100
+            console.log('🔍🔍🔍 MAP-ENGINE RECEIVED REAL DATA:', {
+                type: typeof realParcelData,
+                isArray: Array.isArray(realParcelData),
+                length: realParcelData?.length,
+                firstItem: realParcelData?.[0]
             });
             
-            // PNU 생성 (클릭 위치 기반)
-            const pnu = `CLICK_${Date.now()}_${Math.floor(lat * 10000)}_${Math.floor(lng * 10000)}`;
+            if (!realParcelData || realParcelData.length === 0) {
+                Logger.error('MAP', '해당 위치에 실제 필지 데이터가 없음', { lat, lng });
+                Utils.updateStatus('❌ 해당 위치에는 필지가 없거나 API 오류가 발생했습니다.', 'error');
+                return;
+            }
             
-            // 필지 정보 생성
-            const parcelInfo = {
-                pnu: pnu,
-                polygon: polygon,
-                lat: lat,
-                lng: lng,
-                color: color,
-                properties: {
-                    PNU: pnu,
-                    jibun: `클릭-${Math.floor(lat * 1000)}-${Math.floor(lng * 1000)}`,
-                    address: `클릭 위치 (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
-                    area: 100, // 약 100㎡로 고정
-                    landType: '클릭 생성 필지'
-                },
-                coordinates: bounds,
-                createdAt: new Date().toISOString()
-            };
-            
-            // parcels Map에 추가
-            this.parcels.set(pnu, parcelInfo);
-            
-            // 로컬 저장소에 저장
-            if (window.DataManager) {
+            // 🎯 실제 필지 데이터로 렌더링 처리
+            let rendered = 0;
+            for (let i = 0; i < realParcelData.length; i++) {
+                const parcelData = realParcelData[i];
+                
                 try {
-                    await window.DataManager.saveParcel(parcelInfo);
-                    Logger.info('DATA', '클릭 필지 저장 완료', pnu);
-                } catch (saveError) {
-                    Logger.warn('DATA', '클릭 필지 저장 실패', saveError);
+                    const polygon = await this.renderRealParcel(parcelData);
+                    if (polygon) {
+                        rendered++;
+                        Logger.success('MAP', `✅ 실제 필지 렌더링 성공 (${i + 1}/${realParcelData.length})`);
+                        
+                        // 첫 번째 필지 정보를 패널에 표시
+                        if (i === 0) {
+                            this.showRealParcelInfo(parcelData);
+                        }
+                    }
+                } catch (renderError) {
+                    Logger.error('MAP', `❌ 실제 필지 렌더링 중 오류 (${i + 1}/${realParcelData.length})`, renderError);
                 }
             }
             
-            Logger.success('MAP', '🎨 클릭 기반 필지 생성 완료', {
-                pnu, color, lat, lng, bounds: bounds.length
-            });
-            
-            return parcelInfo;
+            if (rendered > 0) {
+                Utils.updateStatus(`✅ ${rendered}개 실제 필지에 색칠 완료`, 'success');
+            } else {
+                Utils.updateStatus('⚠️ 렌더링 가능한 필지가 없습니다.', 'warning');
+            }
             
         } catch (error) {
-            Logger.error('MAP', '❌ 클릭 기반 필지 생성 실패', error);
-            throw error;
+            Logger.error('MAP', '❌ 실제 필지 데이터 조회 실패', error);
+            Utils.updateStatus('🔴 VWorld API 연결 실패 - 서버리스 함수 오류', 'error');
         }
     }
     
     /**
-     * 📋 필지 정보 패널에 표시
+     * 📋 실제 필지 정보 패널에 표시
      */
-    showParcelInfo(parcelInfo) {
-        if (!parcelInfo || !parcelInfo.properties) return;
+    showRealParcelInfo(parcelData) {
+        if (!parcelData || !parcelData.properties) return;
         
-        const props = parcelInfo.properties;
+        const props = parcelData.properties;
         
         // 필지 정보 패널 업데이트
         const jibunInput = document.querySelector('input[placeholder*="123-4"]');
@@ -177,12 +123,12 @@ class MapEngine {
         const addressInput = document.querySelector('input[placeholder*="서울시"]');
         const phoneInput = document.querySelector('input[placeholder*="010"]');
         
-        if (jibunInput) jibunInput.value = props.jibun || '';
-        if (ownerInput) ownerInput.value = '클릭 생성';
-        if (addressInput) addressInput.value = props.address || '';
+        if (jibunInput) jibunInput.value = props.jibun || props.JIBUN || '';
+        if (ownerInput) ownerInput.value = '실제 필지 소유자';
+        if (addressInput) addressInput.value = props.address || props.ADDRESS || `PNU: ${props.PNU || ''}`;
         if (phoneInput) phoneInput.value = '';
         
-        Logger.info('UI', '필지 정보 패널 업데이트 완료', props);
+        Logger.info('UI', '실제 필지 정보 패널 업데이트 완료', props);
     }
 
     /**

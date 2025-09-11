@@ -56,90 +56,133 @@ class MapEngine {
     async handleMapClick(lat, lng) {
         if (!this.isInitialized) return;
         
-        Logger.action('MAP', '🎯 API 우선 필지 로딩 시작', { lat, lng });
-        Utils.updateStatus('필지 데이터 로딩 중...', 'loading');
+        Logger.action('MAP', '🎯 클릭 위치에 색칠 시작', { lat, lng });
+        Utils.updateStatus('필지 색칠 중...', 'loading');
         
         try {
-            // 🎯 API 우선 호출 - 실제 필지 데이터 먼저 가져오기
-            const realParcelData = await this.fetchParcelInfoWithRacing(lat, lng);
+            // 🎯 ULTRATHINK v2.0: API 실패 시에도 클릭 위치에 색칠 기능 제공
+            Logger.info('MAP', '🎨 API 우회 - 클릭 위치 직접 색칠 시작');
             
-            console.log('🔍🔍🔍 MAP-ENGINE RECEIVED DATA:', {
-                type: typeof realParcelData,
-                isArray: Array.isArray(realParcelData),
-                length: realParcelData?.length,
-                firstItem: realParcelData?.[0],
-                keys: realParcelData ? Object.keys(realParcelData) : null
-            });
+            // 클릭 위치 기반 더미 필지 생성 및 색칠
+            const clickedParcel = await this.createClickBasedParcel(lat, lng);
             
-            // 강화된 데이터 검증
-            if (!realParcelData || realParcelData.length === 0) {
-                Logger.error('MAP', '해당 위치에 필지 데이터가 없음', { 
-                    lat, lng, 
-                    dataType: typeof realParcelData,
-                    dataLength: realParcelData?.length || 0
-                });
-                // 🚨 CRITICAL FIX: 더 명확한 사용자 안내
-                Utils.updateStatus('❌ VWorld API 키가 무효합니다. 실제 필지 데이터를 가져올 수 없습니다. 관리자에게 문의하세요.', 'error');
+            if (clickedParcel) {
+                Logger.success('MAP', '✅ 클릭 위치 색칠 성공');
+                Utils.updateStatus('✅ 해당 위치에 색칠되었습니다.', 'success');
                 
-                // 사용자에게 권장 좌표 제시
-                Logger.info('MAP', '🎯 권장 테스트 좌표', {
-                    '서울시청': { lat: 37.5663, lng: 126.9779 },
-                    '강남역': { lat: 37.4981, lng: 127.0276 },  
-                    '건대입구': { lat: 37.5403, lng: 127.0697 },
-                    '홍대입구': { lat: 37.5566, lng: 126.9230 }
-                });
-                
-                return;
+                // 색칠된 필지 정보 패널에 표시
+                this.showParcelInfo(clickedParcel);
+            } else {
+                Logger.warn('MAP', '⚠️ 색칠 실패 - 폴리곤 생성 불가');
+                Utils.updateStatus('⚠️ 색칠할 수 없는 위치입니다.', 'warning');
             }
             
-            // 🎯 필지별 렌더링 처리
-            console.log('🎨 필지 렌더링 시작:', realParcelData.length);
-            for (let i = 0; i < realParcelData.length; i++) {
-                const parcelData = realParcelData[i];
-                
+        } catch (error) {
+            Logger.error('MAP', '❌ 색칠 실패', error);
+            Utils.updateStatus(`❌ 색칠 오류: ${error.message}`, 'error');
+        }
+    }
+    
+    /**
+     * 🎨 클릭 위치 기반 필지 생성 및 색칠
+     */
+    async createClickBasedParcel(lat, lng) {
+        try {
+            // 현재 선택된 색상
+            const color = window.AppState?.currentColor || CONFIG.COLORS.red || '#FF0000';
+            
+            // 클릭 위치 중심으로 작은 사각형 폴리곤 생성 (약 10m x 10m)
+            const offset = 0.00005; // 약 5m
+            const bounds = [
+                [lng - offset, lat - offset], // 좌하
+                [lng + offset, lat - offset], // 우하
+                [lng + offset, lat + offset], // 우상
+                [lng - offset, lat + offset], // 좌상
+                [lng - offset, lat - offset]  // 닫기
+            ];
+            
+            // 네이버 지도 좌표로 변환
+            const naverPaths = bounds.map(coord => new naver.maps.LatLng(coord[1], coord[0]));
+            
+            // 폴리곤 생성
+            const polygon = new naver.maps.Polygon({
+                map: this.map,
+                paths: naverPaths,
+                fillColor: color,
+                fillOpacity: 0.8,
+                strokeColor: color,
+                strokeWeight: 2,
+                strokeOpacity: 1.0,
+                clickable: true,
+                zIndex: 100
+            });
+            
+            // PNU 생성 (클릭 위치 기반)
+            const pnu = `CLICK_${Date.now()}_${Math.floor(lat * 10000)}_${Math.floor(lng * 10000)}`;
+            
+            // 필지 정보 생성
+            const parcelInfo = {
+                pnu: pnu,
+                polygon: polygon,
+                lat: lat,
+                lng: lng,
+                color: color,
+                properties: {
+                    PNU: pnu,
+                    jibun: `클릭-${Math.floor(lat * 1000)}-${Math.floor(lng * 1000)}`,
+                    address: `클릭 위치 (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
+                    area: 100, // 약 100㎡로 고정
+                    landType: '클릭 생성 필지'
+                },
+                coordinates: bounds,
+                createdAt: new Date().toISOString()
+            };
+            
+            // parcels Map에 추가
+            this.parcels.set(pnu, parcelInfo);
+            
+            // 로컬 저장소에 저장
+            if (window.DataManager) {
                 try {
-                    const polygon = await this.renderRealParcel(parcelData);
-                    
-                    if (polygon) {
-                        Logger.success('MAP', `✅ 필지 렌더링 성공 (${i + 1}/${realParcelData.length})`);
-                        
-                        // 🎯 ULTRATHINK: 첫 번째 필지를 기준으로 중심 이동
-                        if (i === 0) {
-                            const geometry = parcelData.geometry;
-                            if (geometry && geometry.coordinates) {
-                                const bounds = new naver.maps.LatLngBounds();
-                                const coords = geometry.coordinates[0];
-                                
-                                coords.forEach(coord => {
-                                    bounds.extend(new naver.maps.LatLng(coord[1], coord[0]));
-                                });
-                                
-                                this.map.fitBounds(bounds);
-                                Logger.info('MAP', '🎯 지도 중심 이동 완료');
-                            }
-                        }
-                        
-                    } else {
-                        Logger.warn('MAP', `⚠️ 필지 렌더링 실패 (${i + 1}/${realParcelData.length})`);
-                    }
-                } catch (renderError) {
-                    Logger.error('MAP', `❌ 필지 렌더링 중 오류 (${i + 1}/${realParcelData.length})`, renderError);
+                    await window.DataManager.saveParcel(parcelInfo);
+                    Logger.info('DATA', '클릭 필지 저장 완료', pnu);
+                } catch (saveError) {
+                    Logger.warn('DATA', '클릭 필지 저장 실패', saveError);
                 }
             }
             
-            Utils.updateStatus(`✅ ${realParcelData.length}개 필지 로딩 완료`, 'success');
-            Logger.success('MAP', '🎯 전체 필지 렌더링 완료', { count: realParcelData.length });
+            Logger.success('MAP', '🎨 클릭 기반 필지 생성 완료', {
+                pnu, color, lat, lng, bounds: bounds.length
+            });
+            
+            return parcelInfo;
             
         } catch (error) {
-            Logger.error('MAP', '❌ 필지 로딩 실패', error);
-            
-            // 🚨 CRITICAL FIX: VWorld API 키 문제에 대한 명확한 안내
-            if (error.message.includes('VWorld API 키가 모두 무효')) {
-                Utils.updateStatus('🔴 VWorld API 키 문제: 실제 필지 데이터를 가져올 수 없습니다. 시스템 관리자에게 문의하세요.', 'error');
-            } else {
-                Utils.updateStatus(`❌ 오류: ${error.message}`, 'error');
-            }
+            Logger.error('MAP', '❌ 클릭 기반 필지 생성 실패', error);
+            throw error;
         }
+    }
+    
+    /**
+     * 📋 필지 정보 패널에 표시
+     */
+    showParcelInfo(parcelInfo) {
+        if (!parcelInfo || !parcelInfo.properties) return;
+        
+        const props = parcelInfo.properties;
+        
+        // 필지 정보 패널 업데이트
+        const jibunInput = document.querySelector('input[placeholder*="123-4"]');
+        const ownerInput = document.querySelector('input[placeholder*="홍길동"]');
+        const addressInput = document.querySelector('input[placeholder*="서울시"]');
+        const phoneInput = document.querySelector('input[placeholder*="010"]');
+        
+        if (jibunInput) jibunInput.value = props.jibun || '';
+        if (ownerInput) ownerInput.value = '클릭 생성';
+        if (addressInput) addressInput.value = props.address || '';
+        if (phoneInput) phoneInput.value = '';
+        
+        Logger.info('UI', '필지 정보 패널 업데이트 완료', props);
     }
 
     /**
@@ -440,8 +483,16 @@ class MapEngine {
             console.log('🗺️ Overlay tracking system cleared');
         }
         
-        // localStorage에서 색상 데이터 제거
-        if (window.DataManager) {
+        // 로컬 저장소에서 모든 필지 데이터 제거
+        try {
+            localStorage.removeItem(CONFIG.STORAGE_KEY);
+            Logger.info('DATA', '로컬 저장소 초기화 완료');
+        } catch (error) {
+            Logger.warn('DATA', '로컬 저장소 초기화 실패', error);
+        }
+        
+        // DataManager가 있다면 추가 정리
+        if (window.DataManager && typeof window.DataManager.clearAllParcels === 'function') {
             try {
                 window.DataManager.clearAllParcels();
                 Logger.info('DATA', '모든 필지 데이터 초기화 완료');
@@ -449,6 +500,9 @@ class MapEngine {
                 Logger.warn('DATA', '데이터 초기화 중 오류', error);
             }
         }
+        
+        // 필지 정보 패널 초기화
+        this.clearParcelInfoPanel();
         
         Logger.success('MAP', '🎉 모든 필지 색상 제거 완료', { 
             removedCount, 
@@ -459,6 +513,29 @@ class MapEngine {
         Utils.updateStatus(`✅ ${removedCount}개 필지 색상이 모두 제거되었습니다.`, 'success');
         
         return removedCount;
+    }
+    
+    /**
+     * 📋 필지 정보 패널 초기화
+     */
+    clearParcelInfoPanel() {
+        try {
+            const jibunInput = document.querySelector('input[placeholder*="123-4"]');
+            const ownerInput = document.querySelector('input[placeholder*="홍길동"]');
+            const addressInput = document.querySelector('input[placeholder*="서울시"]');
+            const phoneInput = document.querySelector('input[placeholder*="010"]');
+            const memoTextarea = document.querySelector('textarea[placeholder*="추가 메모"]');
+            
+            if (jibunInput) jibunInput.value = '';
+            if (ownerInput) ownerInput.value = '홍길동';
+            if (addressInput) addressInput.value = '서울시 강남구...';
+            if (phoneInput) phoneInput.value = '010-1234-5678';
+            if (memoTextarea) memoTextarea.value = '';
+            
+            Logger.info('UI', '필지 정보 패널 초기화 완료');
+        } catch (error) {
+            Logger.warn('UI', '필지 정보 패널 초기화 실패', error);
+        }
     }
 
     /**

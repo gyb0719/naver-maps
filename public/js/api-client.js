@@ -9,39 +9,31 @@ const APIClient = {
      */
     async getParcelInfo(geomFilter, size = '10') {
         try {
-            if (CONFIG.IS_LOCAL) {
-                // 🎯 로컬 환경: 모킹 데이터 사용
-                Utils.updateStatus('로컬 모드: 샘플 필지 데이터 로드 중...');
-                console.log('[API] 로컬 모킹 모드 - VWorld API 시뮬레이션');
-                
-                return await Utils.mockVWorldAPI(geomFilter);
+            // 🚀 ULTRATHINK: 항상 실제 API 호출 (더미 데이터 제거)
+            Utils.updateStatus('필지 정보 조회 중...');
+            console.log('[API] 실제 VWorld API 호출 - 더미 데이터 사용 안함');
+            
+            const baseUrl = window.location.origin;
+            const params = new URLSearchParams({
+                service: 'data',
+                request: 'GetFeature',
+                data: 'LP_PA_CBND_BUBUN',
+                key: CONFIG.VWORLD_API_KEYS[0],
+                geometry: 'true',
+                geomFilter: geomFilter,
+                size: size,
+                format: 'json',
+                crs: 'EPSG:4326'
+            });
+            
+            const response = await fetch(`${baseUrl}/api/vworld?${params.toString()}`);
+            const data = await response.json();
+            
+            if (response.ok && (data.response?.status === 'OK' || data.features)) {
+                console.log('[API] 필지 정보 조회 성공:', data.features?.length || 0);
+                return data;
             } else {
-                // 🚀 프로덕션 환경: 실제 API 호출
-                Utils.updateStatus('필지 정보 조회 중...');
-                console.log('[API] 프로덕션 모드 - 실제 VWorld API 호출');
-                
-                const baseUrl = window.location.origin;
-                const params = new URLSearchParams({
-                    service: 'data',
-                    request: 'GetFeature',
-                    data: 'LP_PA_CBND_BUBUN',
-                    key: CONFIG.VWORLD_API_KEYS[0],
-                    geometry: 'true',
-                    geomFilter: geomFilter,
-                    size: size,
-                    format: 'json',
-                    crs: 'EPSG:4326'
-                });
-                
-                const response = await fetch(`${baseUrl}/api/vworld?${params.toString()}`);
-                const data = await response.json();
-                
-                if (response.ok && (data.response?.status === 'OK' || data.features)) {
-                    console.log('[API] 필지 정보 조회 성공:', data.features?.length || 0);
-                    return data;
-                } else {
-                    throw new Error(data.error || '필지 정보 조회 실패');
-                }
+                throw new Error(data.error || '필지 정보 조회 실패');
             }
         } catch (error) {
             Utils.handleError('VWORLD', '필지 정보 조회 오류', error);
@@ -54,20 +46,13 @@ const APIClient = {
      */
     async geocodeAddress(query) {
         try {
-            if (CONFIG.IS_LOCAL) {
-                // 🎯 로컬 환경: 모킹 데이터 사용
-                Utils.updateStatus('로컬 모드: 주소 검색 시뮬레이션...');
-                console.log('[API] 로컬 모킹 모드 - Naver Geocoding 시뮬레이션');
-                
-                return await Utils.mockNaverGeocode(query);
-            } else {
-                // 🚀 프로덕션 환경: 실제 API 호출
-                Utils.updateStatus('주소 검색 중...');
-                console.log('[API] 프로덕션 모드 - 실제 Naver Geocoding API 호출');
-                
-                const baseUrl = window.location.origin;
-                const response = await fetch(`${baseUrl}/api/naver/geocode?query=${encodeURIComponent(query)}`);
-                const data = await response.json();
+            // 🚀 ULTRATHINK: 항상 실제 API 호출 (더미 데이터 제거)
+            Utils.updateStatus('주소 검색 중...');
+            console.log('[API] 실제 Naver Geocoding API 호출 - 더미 데이터 사용 안함');
+            
+            const baseUrl = window.location.origin;
+            const response = await fetch(`${baseUrl}/api/naver/geocode?query=${encodeURIComponent(query)}`);
+            const data = await response.json();
                 
                 if (response.ok) {
                     console.log('[API] 주소 검색 성공:', data.addresses?.length || 0);

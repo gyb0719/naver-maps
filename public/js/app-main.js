@@ -71,7 +71,7 @@ class App {
         Logger.info('APP', '지도 초기화');
         
         if (window.MapEngine) {
-            await window.MapEngine.initMap();
+            window.MapEngine.init();
         } else {
             throw new Error('MapEngine이 로드되지 않았습니다');
         }

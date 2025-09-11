@@ -30,6 +30,12 @@ class MapEngine {
                 this.handleMapClick(latlng.lat(), latlng.lng());
             });
             
+            // 지도 우클릭 이벤트 리스너 - 모든 색상 제거
+            naver.maps.Event.addListener(this.map, 'rightclick', (e) => {
+                e.domEvent.preventDefault(); // 기본 컨텍스트 메뉴 방지
+                this.clearAllParcelColors();
+            });
+            
             Logger.info('MAP', '✅ Naver Maps 초기화 완료');
             
             // 지도 초기화 완료 이벤트 발생

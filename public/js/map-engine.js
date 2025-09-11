@@ -534,6 +534,31 @@ class MapEngine {
         
         Logger.info('MAP', '🔄 지도 초기화 완료');
     }
+
+    /**
+     * 🗺️ 지도 타입 변경
+     */
+    changeMapType(type) {
+        if (!this.map) return;
+        
+        const mapTypes = {
+            'normal': naver.maps.MapTypeId.NORMAL,
+            'satellite': naver.maps.MapTypeId.SATELLITE,  // 순수 위성지도
+            'hybrid': naver.maps.MapTypeId.HYBRID,        // 위성+도로
+            'terrain': naver.maps.MapTypeId.TERRAIN,      // 지형도
+            'cadastral': naver.maps.MapTypeId.NORMAL      // 지적편집도 (일반지도+오버레이)
+        };
+        
+        if (mapTypes[type]) {
+            this.map.setMapTypeId(mapTypes[type]);
+            Logger.info('MAP', `🗺️ 지도 타입 변경: ${type}`);
+            
+            // 지적편집도는 별도 구현 필요 (향후)
+            if (type === 'cadastral') {
+                Logger.info('MAP', '📋 지적편집도 오버레이 (미구현)');
+            }
+        }
+    }
 }
 
 // 전역 인스턴스 생성 및 자동 초기화

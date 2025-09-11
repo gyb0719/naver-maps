@@ -47,7 +47,7 @@ function initMap() {
     cadastralLayer = new naver.maps.CadastralLayer();
     streetLayer = new naver.maps.StreetLayer();
     
-    // 지도 타입 변경 이벤트
+    // 지도 타입 변경 이벤트 (MapEngine 연동)
     document.querySelectorAll('.map-type-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             // 활성 버튼 변경
@@ -56,34 +56,32 @@ function initMap() {
             
             const type = this.dataset.type;
             
-            // 모든 레이어 제거
-            cadastralLayer.setMap(null);
-            streetLayer.setMap(null);
+            // MapEngine을 통한 지도 타입 변경
+            if (window.MapEngine && window.MapEngine.changeMapType) {
+                window.MapEngine.changeMapType(type);
+            }
             
-            // 항상 지도 표시 (파노라마 컨테이너 숨김)
+            // 기존 레이어 및 파노라마 처리는 유지
+            if (typeof cadastralLayer !== 'undefined') cadastralLayer.setMap(null);
+            if (typeof streetLayer !== 'undefined') streetLayer.setMap(null);
+            
             document.getElementById('map').style.display = 'block';
             document.getElementById('pano').style.display = 'none';
             
+            // 특별한 타입별 추가 처리
             switch(type) {
-                case 'normal':
-                    map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-                    break;
-                case 'satellite':
-                    map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
-                    break;
                 case 'cadastral':
-                    map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-                    cadastralLayer.setMap(map);
-                    // 지적편집도 모드에서 필지 데이터 자동 로드
+                    // 지적편집도 모드에서 필지 데이터 자동 로드 (미구현)
                     if (typeof loadParcelsInBounds === 'function') {
-                        loadParcelsInBounds(map.getBounds());
+                        loadParcelsInBounds(window.MapEngine.map.getBounds());
                     }
                     break;
                 case 'street':
-                    // 🎯 ULTRATHINK: 지도 위에 로드뷰 가능 길 보라색 테두리 표시
-                    map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-                    streetLayer.setMap(map);
-                    console.log('📍 로드뷰 레이어 활성화 - 보라색 테두리로 길 표시');
+                    // 거리뷰: 로드뷰 가능 길을 보라색 테두리로 표시
+                    if (typeof streetLayer !== 'undefined' && window.MapEngine.map) {
+                        streetLayer.setMap(window.MapEngine.map);
+                        console.log('📍 로드뷰 레이어 활성화 - 보라색 테두리로 길 표시');
+                    }
                     break;
             }
         });

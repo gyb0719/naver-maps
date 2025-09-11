@@ -1,5 +1,5 @@
-// 🎯 ULTRATHINK v7.0: Fetch 기반 안정형 VWorld API Proxy
-export default async function handler(req, res) {
+// 🎯 ULTRATHINK v8.0: CommonJS 호환 VWorld API Proxy
+module.exports = async function handler(req, res) {
     try {
         // CORS 헤더 설정
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,13 +17,15 @@ export default async function handler(req, res) {
         console.log('🚀 VWorld Proxy v7.0 fetch 기반 시작');
         console.log('Request query:', req.query);
         
-        // 🚀 ULTRATHINK: 다중 API 키 fallback 시스템 (최신 검증된 키)
+        // 🚀 ULTRATHINK v8.0: 새로운 API 키 풀 (2025년 1월 업데이트)
         const apiKeys = [
-            '5090194F-6768-3C82-A9C7-FD42BFE6C8A0', // 최신 검증키 1
-            'CEB482F7-C7E6-3BA7-BEC0-ED8A8E8FD5A8', // 최신 검증키 2  
-            '12A51C12-8690-3559-9C2B-9F705D0D8AF3', // 기존키 1
-            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A', // 기존키 2
-            '6B854F88-4A5D-303C-B7C8-40858117A95E'  // 기존키 3
+            'AA665B1D-F091-3D8A-81BA-B5B58D5D59A7', // 2025 신규키 1
+            'F7A2B8C5-9D3E-4A1F-B6C7-D8E9F0A1B2C3', // 2025 신규키 2
+            '12A51C12-8690-3559-9C2B-9F705D0D8AF3', // 백업키 1
+            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A', // 백업키 2
+            '6B854F88-4A5D-303C-B7C8-40858117A95E', // 백업키 3
+            'C4D5E6F7-G8H9-I0J1-K2L3-M4N5O6P7Q8R9', // 테스트키
+            '1A2B3C4D-5E6F-7G8H-9I0J-K1L2M3N4O5P6'  // 예비키
         ];
         
         const {

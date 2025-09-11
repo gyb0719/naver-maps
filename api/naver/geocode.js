@@ -1,5 +1,5 @@
-// 🎯 ULTRATHINK: Naver Geocoding API Proxy for Vercel
-export default async function handler(req, res) {
+// 🎯 ULTRATHINK: CommonJS 호환 Naver Geocoding API Proxy
+module.exports = async function handler(req, res) {
     try {
         // CORS 헤더 설정
         res.setHeader('Access-Control-Allow-Origin', '*');

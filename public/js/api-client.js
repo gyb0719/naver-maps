@@ -53,13 +53,12 @@ const APIClient = {
             const baseUrl = window.location.origin;
             const response = await fetch(`${baseUrl}/api/naver/geocode?query=${encodeURIComponent(query)}`);
             const data = await response.json();
-                
-                if (response.ok) {
-                    console.log('[API] 주소 검색 성공:', data.addresses?.length || 0);
-                    return data;
-                } else {
-                    throw new Error(data.error || '주소 검색 실패');
-                }
+            
+            if (response.ok) {
+                console.log('[API] 주소 검색 성공:', data.addresses?.length || 0);
+                return data;
+            } else {
+                throw new Error(data.error || '주소 검색 실패');
             }
         } catch (error) {
             Utils.handleError('GEOCODE', '주소 검색 오류', error);

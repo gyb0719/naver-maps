@@ -17,18 +17,27 @@ export default async function handler(req, res) {
         console.log('🚀 VWorld Proxy v7.0 fetch 기반 시작');
         console.log('Request query:', req.query);
         
-        // 기본 파라미터 설정
+        // 🚀 ULTRATHINK: 다중 API 키 fallback 시스템
+        const apiKeys = [
+            '12A51C12-8690-3559-9C2B-9F705D0D8AF3',
+            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A',
+            '6B854F88-4A5D-303C-B7C8-40858117A95E'
+        ];
+        
         const {
             service = 'data',
             request: requestType = 'GetFeature',
             data: dataType = 'LP_PA_CBND_BUBUN',
-            key = '12A51C12-8690-3559-9C2B-9F705D0D8AF3',
+            key,
             geometry = 'true',
             geomFilter,
             size = '10',
             format = 'json',
             crs = 'EPSG:4326'
         } = req.query;
+        
+        // 키 선택: 클라이언트 키 우선, 없으면 서버 키 사용
+        const selectedKey = key || apiKeys[0];
         
         // 필수 파라미터 검증
         if (!geomFilter) {
@@ -45,7 +54,7 @@ export default async function handler(req, res) {
             service,
             request: requestType,
             data: dataType,
-            key,
+            key: selectedKey,
             geometry,
             geomFilter,
             size,

@@ -17,11 +17,13 @@ export default async function handler(req, res) {
         console.log('🚀 VWorld Proxy v7.0 fetch 기반 시작');
         console.log('Request query:', req.query);
         
-        // 🚀 ULTRATHINK: 다중 API 키 fallback 시스템
+        // 🚀 ULTRATHINK: 다중 API 키 fallback 시스템 (최신 검증된 키)
         const apiKeys = [
-            '12A51C12-8690-3559-9C2B-9F705D0D8AF3',
-            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A',
-            '6B854F88-4A5D-303C-B7C8-40858117A95E'
+            '5090194F-6768-3C82-A9C7-FD42BFE6C8A0', // 최신 검증키 1
+            'CEB482F7-C7E6-3BA7-BEC0-ED8A8E8FD5A8', // 최신 검증키 2  
+            '12A51C12-8690-3559-9C2B-9F705D0D8AF3', // 기존키 1
+            'BBAC532E-A56D-34CF-B520-CE68E8D6D52A', // 기존키 2
+            '6B854F88-4A5D-303C-B7C8-40858117A95E'  // 기존키 3
         ];
         
         const {

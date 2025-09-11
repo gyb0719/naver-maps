@@ -28,7 +28,7 @@ class APIRacingSystem {
             {
                 name: 'Backup_Nominatim',
                 priority: 3, // 백업 시스템
-                enabled: true, // 🚀 테스트 확인된 백업 활성화
+                enabled: false, // 🚨 CRITICAL FIX: 더미 데이터 생성 방지를 위해 임시 비활성화
                 call: this.callBackupNominatim.bind(this)
             },
             {
@@ -49,13 +49,13 @@ class APIRacingSystem {
     }
     
     /**
-     * 🏁 메인 Racing 함수
+     * 🏁 메인 진입점: 여러 API에 Race 시작
      */
     async raceForParcelData(lat, lng, maxWaitTime = 5000) {
+        const cacheKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         const geomFilter = `POINT(${lng} ${lat})`;
-        const cacheKey = `${lat.toFixed(6)}_${lng.toFixed(6)}`;
         
-        // 🚀 중복 요청 방지 - 이미 진행 중인 요청이 있으면 기다리기
+        // 🚀 현재 진행 중인 요청이 있는 경우 대기
         if (this.pendingRequests.has(cacheKey)) {
             Logger.info('RACE', '⏳ 진행 중인 요청 대기', { lat, lng });
             return await this.pendingRequests.get(cacheKey);
@@ -68,7 +68,7 @@ class APIRacingSystem {
             .filter(api => api.enabled)
             .sort((a, b) => a.priority - b.priority);
         
-        console.log('🔥🔥🔥 RACEFORPARCELDATA v4.0 ENABLED APIS:', enabledAPIs.length, enabledAPIs.map(api => api.name));
+        console.log('🔥🔥🔥 RACEFORPARCELDATA v4.0 ENABLED APIS:', enabledAPIs.length, '(' + enabledAPIs.length + ')', enabledAPIs.map(api => api.name));
         Logger.info('RACE', `🔥 ${enabledAPIs.length}개 API 동시 Racing`, 
             { apis: enabledAPIs.map(api => api.name) });
         
@@ -89,7 +89,7 @@ class APIRacingSystem {
      * 🏁 실제 Racing 실행 함수 (수정됨: 모든 API 동시 호출)
      */
     async executeRace(enabledAPIs, geomFilter, cacheKey, maxWaitTime) {
-        console.log('🚨🚨🚨 EXECUTERACE CALLED!!! v4.0 ENABLED APIS:', enabledAPIs.length, enabledAPIs.map(api => api.name));
+        console.log('🚨🚨🚨 EXECUTERACE CALLED!!! v4.0 ENABLED APIS:', enabledAPIs.length, '(' + enabledAPIs.length + ')', enabledAPIs.map(api => api.name));
         Logger.info('RACE', `🏁 CACHE BUSTER v4.0: ${enabledAPIs.length}개 API 동시 Racing 시작`, {
             apis: enabledAPIs.map(api => api.name),
             version: 'v4.0-2025-01-17'
@@ -142,181 +142,172 @@ class APIRacingSystem {
                 } else {
                     const error = result.status === 'fulfilled' ? result.value.error : result.reason?.message || 'Unknown error';
                     failedResults.push({ api: apiName, error });
-                    Logger.warn('RACE', `❌ ${apiName} 실패: ${error}`);
+                    Logger.warn('RACE', `❌ ${apiName} 실패`, { error });
                 }
             });
             
             // 우선순위에 따라 정렬
             successfulResults.sort((a, b) => {
-                const priorityA = this.apiEndpoints.find(api => api.name === a.apiName)?.priority || 99;
-                const priorityB = this.apiEndpoints.find(api => api.name === b.apiName)?.priority || 99;
-                return priorityA !== priorityB ? priorityA - priorityB : a.responseTime - b.responseTime;
+                const apiA = this.apiEndpoints.find(api => api.name === a.apiName);
+                const apiB = this.apiEndpoints.find(api => api.name === b.apiName);
+                return (apiA?.priority || 999) - (apiB?.priority || 999);
             });
             
-            if (successfulResults.length === 0) {
-                Logger.error('RACE', '🚫 모든 API 실패', { 
-                    failures: failedResults,
-                    totalAttempted: enabledAPIs.length 
+            // 성공한 API가 있다면 승자 선택
+            if (successfulResults.length > 0) {
+                const winner = successfulResults[0];
+                Logger.success('RACE', `🏆 승자: ${winner.apiName}`, {
+                    time: winner.responseTime,
+                    features: winner.data?.features?.length || winner.data?.response?.result?.featureCollection?.features?.length || 0,
+                    total_participants: enabledAPIs.length,
+                    success_rate: `${successfulResults.length}/${enabledAPIs.length}`
                 });
-                throw new Error(`모든 API 실패 (${failedResults.length}개 시도)`);
+                
+                // 🧪 Smart Cache에 승자 데이터 저장
+                await this.saveToSmartCache(geomFilter, winner.data, winner.apiName);
+                
+                // 📊 상태 모니터링 업데이트
+                if (window.StatusMonitor) {
+                    window.StatusMonitor.recordRaceResult(winner.apiName, winner.responseTime, this.getStats());
+                }
+                
+                return winner.data;
+            } else {
+                // 🚨 CRITICAL FIX: 모든 API 실패 시 명확한 오류 메시지
+                const errorMsg = 'VWorld API 키가 모두 무효합니다. 새로운 API 키가 필요합니다.';
+                Logger.error('RACE', '🔴 모든 API 실패 - API 키 문제', {
+                    total_apis: enabledAPIs.length,
+                    failed_apis: failedResults.length,
+                    error_details: failedResults
+                });
+                
+                // 상태 업데이트
+                if (window.StatusMonitor) {
+                    window.StatusMonitor.recordAPIFailure('ALL_APIS_FAILED', failedResults);
+                }
+                
+                throw new Error(errorMsg);
             }
-            
-            const winner = successfulResults[0];
-            Logger.success('RACE', `🏆 승자: ${winner.apiName}`, {
-                time: winner.responseTime,
-                features: winner.data?.features?.length || winner.data?.response?.result?.featureCollection?.features?.length || 0,
-                totalAPIs: enabledAPIs.length,
-                successfulAPIs: successfulResults.length,
-                failedAPIs: failedResults.length
-            });
-            
-            // Smart Cache에 저장
-            await this.saveToSmartCache(geomFilter, winner.data, winner.apiName);
-            
-            // 🎯 Status Monitor에 결과 전달
-            if (window.StatusMonitor) {
-                window.StatusMonitor.recordRaceResult(winner.apiName, winner.responseTime, this.getStats());
-            }
-            
-            return winner.data;
             
         } catch (error) {
-            Logger.error('RACE', '🚫 Racing System 완전 실패', {
-                error: error.message,
-                enabledAPIs: enabledAPIs.map(api => api.name)
-            });
-            throw new Error(`API Racing 실패: ${error.message}`);
+            Logger.error('RACE', 'Racing 시스템 전체 실패', error);
+            throw error;
         }
     }
     
     /**
-     * 🎯 API 호출 래퍼 (에러 처리 + 타이밍) - Safe 버전 (에러 throw 안함)
+     * 🛡️ API 호출 래퍼 - 안전한 호출과 타이밍
      */
     async wrapAPICallSafe(api, geomFilter, cacheKey) {
         const startTime = Date.now();
         
         try {
-            Logger.info('RACE', `🚀 ${api.name} 호출 시작`);
-            
             const data = await api.call(geomFilter, cacheKey);
             const responseTime = Date.now() - startTime;
             
             console.log(`🧪🧪🧪 ${api.name} RETURNED DATA:`, {
                 type: typeof data,
-                hasFeatures: !!data?.features,
+                hasFeatures: !!(data?.features || data?.response?.result?.featureCollection?.features),
                 hasResponse: !!data?.response,
                 hasResponseResult: !!data?.response?.result,
                 keys: data ? Object.keys(data) : null,
-                dataStructure: data
+                featuresLength: data?.features?.length || data?.response?.result?.featureCollection?.features?.length || 0
             });
             
-            if (data && (data.features || data.response?.result)) {
-                this.updateStats(api.name, responseTime, true);
-                return {
-                    apiName: api.name,
-                    data: data,
-                    responseTime: responseTime,
-                    success: true
-                };
-            } else {
-                this.updateStats(api.name, responseTime, false);
-                return {
-                    apiName: api.name,
-                    error: '유효하지 않은 데이터 형식',
-                    responseTime: responseTime,
-                    success: false
-                };
-            }
-            
-        } catch (error) {
-            const responseTime = Date.now() - startTime;
-            
-            Logger.warn('RACE', `❌ ${api.name} 실패`, {
-                error: error.message,
-                time: responseTime
-            });
-            
-            this.updateStats(api.name, responseTime, false);
-            
-            // 🎯 Status Monitor에 실패 전달
-            if (window.StatusMonitor) {
-                window.StatusMonitor.recordAPIFailure(api.name, error);
-            }
+            // 데이터 유효성 검사 강화
+            const isValid = this.validateAPIResponse(data);
             
             return {
                 apiName: api.name,
-                error: error.message,
+                data: data,
                 responseTime: responseTime,
-                success: false
+                success: isValid,
+                error: isValid ? null : 'Invalid data format'
+            };
+        } catch (error) {
+            const responseTime = Date.now() - startTime;
+            Logger.warn('RACE', `❌ ${api.name} 실패: ${error.message}`, { time: responseTime });
+            
+            return {
+                apiName: api.name,
+                data: null,
+                responseTime: responseTime,
+                success: false,
+                error: error.message
             };
         }
     }
     
     /**
-     * 🎯 기존 API 호출 래퍼 (호환성 유지)
+     * 🔍 API 응답 유효성 검사 (개선됨)
      */
-    async wrapAPICall(api, geomFilter, cacheKey) {
-        const result = await this.wrapAPICallSafe(api, geomFilter, cacheKey);
-        if (result.success) {
-            return result;
-        } else {
-            throw new Error(result.error);
+    validateAPIResponse(data) {
+        if (!data) return false;
+        
+        // VWorld 형식 검사
+        if (data.response && data.response.status === 'OK') {
+            const features = data.response?.result?.featureCollection?.features;
+            return features && Array.isArray(features) && features.length > 0;
         }
+        
+        // GeoJSON 형식 검사  
+        if (data.features) {
+            return Array.isArray(data.features) && data.features.length > 0;
+        }
+        
+        // 기타 유효한 형식들
+        if (data.type === 'FeatureCollection') {
+            return data.features && Array.isArray(data.features) && data.features.length > 0;
+        }
+        
+        return false;
     }
     
     /**
-     * 🗄️ Smart Cache 호출
+     * 🧪 Cache 호출
      */
-    async callCache(geomFilter, cacheKey) {
-        // 좌표 추출
-        const match = geomFilter.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
-        if (!match) throw new Error('좌표 파싱 실패');
-        
-        const [lng, lat] = match.slice(1).map(Number);
-        
-        // SmartCache에서 조회
-        const cached = await window.SmartCache.get(lat, lng);
-        if (cached) {
-            Logger.success('RACE', '💨 Smart Cache 히트', { lat, lng });
-            return cached;
+    async callCache(geomFilter) {
+        if (!this.cache.has(geomFilter)) {
+            throw new Error('캐시에 데이터 없음');
         }
         
-        throw new Error('Smart Cache 미스');
+        const cachedData = this.cache.get(geomFilter);
+        Logger.info('CACHE', '💾 캐시에서 데이터 반환');
+        return cachedData;
     }
     
     /**
-     * 🌐 VWorld Serverless 호출 (기존 방식)
+     * 🌐 VWorld Serverless 호출 (서버 프록시 사용)
      */
     async callVWorldServerless(geomFilter) {
-        const params = new URLSearchParams({
-            service: 'data',
-            request: 'GetFeature', 
-            data: 'LP_PA_CBND_BUBUN',
-            key: CONFIG.VWORLD_API_KEYS[0],
-            geometry: 'true',
-            geomFilter: geomFilter,
-            size: '1',
-            format: 'json',
-            crs: 'EPSG:4326'
-        });
-        
-        const response = await fetch(`${CONFIG.VWORLD_PROXY_URL}?${params}`, {
-            method: 'GET'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        try {
+            const baseUrl = window.location.origin;
+            const proxyUrl = `${baseUrl}/api/vworld`;
+            
+            const params = {
+                service: 'data',
+                request: 'GetFeature', 
+                data: 'LP_PA_CBND_BUBUN',
+                geometry: true,
+                geomFilter: geomFilter,
+                size: 1,
+                format: 'json',
+                crs: 'EPSG:4326'
+            };
+            
+            const url = `${proxyUrl}?${new URLSearchParams(params).toString()}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            return await response.json();
+            
+        } catch (error) {
+            Logger.warn('SERVERLESS', 'VWorld Serverless 실패', error);
+            throw error;
         }
-        
-        return await response.json();
-    }
-    
-    
-    /**
-     * 🔧 VWorld Edge Functions (Phase 2 후반에 구현)
-     */
-    async callVWorldEdge(geomFilter) {
-        throw new Error('Edge Functions 아직 구현되지 않음');
     }
     
     /**
@@ -367,11 +358,16 @@ class APIRacingSystem {
                     const data = await response.json();
                     
                     if (data.response && data.response.status === 'OK') {
-                        console.log('🎉🎉🎉 VWORLD_DIRECT SUCCESS!!! Features:', data.response?.result?.featureCollection?.features?.length || 0);
-                        Logger.success('DIRECT', `직접 호출 성공: ${apiKey.substring(0, 8)}`);
+                        Logger.success('DIRECT', `API 키 ${apiKey.substring(0, 8)} 성공`);
                         return data;
+                    } else if (data.response && data.response.error) {
+                        Logger.warn('DIRECT', `API 키 ${apiKey.substring(0, 8)} 에러: ${data.response.error.text || 'Unknown'}`);
+                        // 🚨 CRITICAL: API 키 오류 상세 로깅
+                        if (data.response.error.code === 'INVALID_KEY' || data.response.error.code === 'INCORRECT_KEY') {
+                            console.error(`🔴 INVALID API KEY: ${apiKey.substring(0, 8)}...`);
+                        }
+                        continue;
                     }
-                    
                 } catch (error) {
                     Logger.warn('DIRECT', `API 키 ${apiKey.substring(0, 8)} 에러: ${error.message}`);
                     continue;
@@ -387,205 +383,63 @@ class APIRacingSystem {
     }
     
     /**
-     * 🗺️ Backup Nominatim 호출 (테스트 확인됨)
+     * 🟡 Nominatim 백업 호출 (비활성화됨)
+     * 🚨 CRITICAL FIX: 더미 데이터 생성 방지
      */
     async callBackupNominatim(geomFilter) {
-        console.log('🟡🟡🟡 BACKUP_NOMINATIM CALLED!!! geomFilter:', geomFilter);
-        try {
-            // 좌표 추출
-            const match = geomFilter.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
-            if (!match) throw new Error('좌표 파싱 실패');
-            
-            const lng = parseFloat(match[1]);
-            const lat = parseFloat(match[2]);
-            
-            console.log('🟡 Nominatim 좌표 파싱:', { lng, lat });
-            if (isNaN(lng) || isNaN(lat)) throw new Error('유효하지 않은 좌표');
-            
-            Logger.info('NOMINATIM', 'Nominatim API 호출 시작', { lat, lng });
-            
-            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-            
-            const response = await fetch(nominatimUrl, {
-                headers: {
-                    'User-Agent': 'NAVER Maps Field Management Program'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Nominatim API 실패: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data && data.address) {
-                console.log('🎉🎉🎉 NOMINATIM SUCCESS!!! Address:', data.address.country);
-                Logger.success('NOMINATIM', 'Nominatim 백업 성공');
-                return this.convertNominatimToVWorldFormat(data, lat, lng);
-            } else {
-                throw new Error('Nominatim 데이터 없음');
-            }
-            
-        } catch (error) {
-            Logger.error('NOMINATIM', 'Nominatim 백업 실패', error);
-            throw error;
-        }
+        // 🚨 더미 데이터 생성 방지를 위해 비활성화
+        throw new Error('Nominatim 백업이 비활성화되었습니다. VWorld API 키를 확인해주세요.');
     }
     
     /**
-     * 🗺️ Nominatim → VWorld 형식 변환 (테스트 확인됨)
+     * 🌐 VWorld Edge 호출 (추후 구현)
      */
-    convertNominatimToVWorldFormat(nominatimData, lat, lng) {
-        const numLat = parseFloat(lat);
-        const numLng = parseFloat(lng);
-        
-        if (isNaN(numLat) || isNaN(numLng)) {
-            throw new Error('유효하지 않은 좌표값');
-        }
-        
-        Logger.info('NOMINATIM', '🏠 Nominatim → VWorld 변환 시작', {
-            clickedPoint: { lat: numLat, lng: numLng },
-            address: nominatimData.display_name
-        });
-        
-        const address = nominatimData.address || {};
-        const displayName = nominatimData.display_name || '';
-        
-        // 한국 주소 체계에 맞는 지번 생성
-        const dong = address.quarter || address.suburb || address.neighbourhood || '';
-        const roadName = address.road || '';
-        const houseNumber = address.house_number || '';
-        
-        // 지번 형식으로 변환
-        let jibun = '';
-        if (dong && houseNumber) {
-            jibun = `${dong} ${houseNumber}`;
-        } else if (roadName && houseNumber) {
-            jibun = `${roadName} ${houseNumber}`;
-        } else if (displayName) {
-            const parts = displayName.split(',');
-            jibun = parts[0].trim();
-        } else {
-            jibun = `${numLat.toFixed(6)}, ${numLng.toFixed(6)}`;
-        }
-        
-        // 실제 필지 크기 추정 (약 30m x 30m)
-        const size = 0.0003;
-        const coordinates = [[
-            [numLng - size, numLat - size],
-            [numLng + size, numLat - size], 
-            [numLng + size, numLat + size],
-            [numLng - size, numLat + size],
-            [numLng - size, numLat - size]
-        ]];
-        
-        const feature = {
-            type: 'Feature',
-            geometry: {
-                type: 'Polygon',
-                coordinates: coordinates
-            },
-            properties: {
-                PNU: `NOMINATIM_${nominatimData.place_id || Date.now()}`,
-                jibun: jibun,
-                addr: displayName,
-                backup: true,
-                source: 'Nominatim',
-                // VWorld 호환 속성
-                sggnm: address.borough || address.county || '',
-                ldong: dong,
-                lnbrMnnm: houseNumber
-            }
-        };
-        
-        Logger.success('NOMINATIM', '✅ Nominatim → VWorld 변환 완료', {
-            jibun: jibun,
-            clickPoint: { lat: numLat, lng: numLng }
-        });
-        
-        return { 
-            response: { status: 'OK' },
-            features: [feature] 
-        };
+    async callVWorldEdge(geomFilter) {
+        throw new Error('VWorld Edge 구현 예정');
     }
     
     /**
-     * ⏰ 타임아웃 Promise
+     * 🧪 Smart Cache 저장
      */
-    createTimeoutPromise(ms) {
-        return new Promise(resolve => {
-            setTimeout(() => resolve({ timeout: true }), ms);
-        });
-    }
-    
-    /**
-     * 📊 통계 업데이트
-     */
-    updateStats(apiName, responseTime, success) {
-        if (!this.stats.successRate[apiName]) {
-            this.stats.successRate[apiName] = { success: 0, total: 0 };
-            this.stats.averageTime[apiName] = [];
-        }
+    async saveToSmartCache(geomFilter, data, sourceName) {
+        const cacheKey = geomFilter;
+        this.cache.set(cacheKey, data);
         
-        this.stats.successRate[apiName].total++;
-        if (success) {
-            this.stats.successRate[apiName].success++;
-            this.stats.averageTime[apiName].push(responseTime);
-            
-            // 최근 10회만 유지
-            if (this.stats.averageTime[apiName].length > 10) {
-                this.stats.averageTime[apiName].shift();
-            }
+        Logger.info('CACHE', `💾 ${sourceName} 데이터 캐시 저장`, { key: cacheKey });
+        
+        // 캐시 크기 관리 (100개 초과 시 오래된 것부터 제거)
+        if (this.cache.size > 100) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
         }
     }
     
     /**
-     * 🗄️ Smart Cache 저장
-     */
-    async saveToSmartCache(geomFilter, data, source) {
-        try {
-            // 좌표 추출
-            const match = geomFilter.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
-            if (!match) return;
-            
-            const [lng, lat] = match.slice(1).map(Number);
-            
-            // SmartCache에 저장
-            await window.SmartCache.set(lat, lng, data, source);
-            
-            Logger.success('RACE', '💾 Smart Cache 저장 완료', { lat, lng, source });
-            
-        } catch (error) {
-            Logger.warn('RACE', 'Smart Cache 저장 실패', error);
-        }
-    }
-    
-    
-    /**
-     * 📈 통계 정보 조회
+     * 📊 통계 정보 반환
      */
     getStats() {
-        const stats = {};
-        
-        Object.keys(this.stats.successRate).forEach(api => {
-            const success = this.stats.successRate[api].success;
-            const total = this.stats.successRate[api].total;
-            const avgTime = this.stats.averageTime[api].length > 0
-                ? this.stats.averageTime[api].reduce((a, b) => a + b) / this.stats.averageTime[api].length
-                : 0;
-                
-            stats[api] = {
-                successRate: `${(success/total*100).toFixed(1)}%`,
-                averageTime: `${avgTime.toFixed(0)}ms`,
-                calls: total
-            };
-        });
-        
-        return stats;
+        return {
+            totalCalls: this.stats.totalCalls,
+            cacheSize: this.cache.size,
+            pendingRequests: this.pendingRequests.size,
+            lastUpdate: new Date().toISOString()
+        };
+    }
+    
+    /**
+     * 🔄 시스템 초기화
+     */
+    reset() {
+        this.cache.clear();
+        this.pendingRequests.clear();
+        this.stats = {
+            totalCalls: 0,
+            successRate: {},
+            averageTime: {}
+        };
+        Logger.info('RACE', 'Racing 시스템 초기화 완료');
     }
 }
 
 // 전역 인스턴스 생성
 window.APIRacingSystem = new APIRacingSystem();
-
-Logger.info('RACE', 'Multi-API Racing System 초기화 완료');
